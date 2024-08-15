@@ -24,7 +24,9 @@ To run multiple model scenarios or repeating model scenarios with random variati
 
 # Model Validation & Testing
 
-SAMPL was based on strategies used to sample freshwater mussels in river and stream habitats. Specifically, the model was inspired by a study by Astrid Schwalb and 
+SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2019, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers, who had extensive experience surveying for freshwater mussels in the field.
+
+SAMPL is a NetLogo model, and as such it does not have built-in software tests. Instead, testing should be a visual inpsection of what is inputted into the model and what is shown in the model interface.
 
 # Contribution Instructions
 
