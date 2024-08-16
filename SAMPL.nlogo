@@ -1358,7 +1358,7 @@ INPUTBOX
 192
 321
 file-name
-H3_matern_test
+placeholder_results
 1
 0
 String
