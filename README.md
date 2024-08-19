@@ -16,9 +16,9 @@ SAMPL was designed to run on NetLogo 6.4.0 or later. To install NetLogo 6.4.0, g
 
 # Running a Simulation
 
-To run SAMPL, open the NetLogo 'interface' tab and use the green dropdown lists and input boxes to configure the model inputs. Example inputs include sampling method, density of mussels, distribution of mussels, frequency and detectability of mussel species, the output file name, and parameters related to the specific sampling method. When the model is set up correctly, click the grey 'Initialize' button. Then click the 'Run Model' button. To view and save results click the "Calculate metrics" button. 
+To run SAMPL, open the NetLogo `interface` tab and use the green dropdown lists and input boxes to configure the model inputs. Example inputs include sampling method, density of mussels, distribution of mussels, frequency and detectability of mussel species, the output file name, and parameters related to the specific sampling method. When the model is set up correctly, click the grey `Initialize` button. Then click the `Run Model` button. To view and save results click the `Calculate metrics` button. 
 
-For more detailed instructions consult the model documentation, located in the 'Info' tab of the NetLogo model.
+For more detailed instructions consult the model documentation, located in the `Info` tab of the NetLogo model.
 
 To run multiple model scenarios or repeating model scenarios with random variation, make use of the behavior space tool under the tools tab. For more information on the behavior space tool consult the NetLogo 6.4.0 User Manual https://ccl.northwestern.edu/netlogo/docs/.
 
