@@ -24,7 +24,7 @@ To run multiple model scenarios or repeating model scenarios with random variati
 
 # Model Validation & Testing
 
-SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2019, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers, who have had extensive experience surveying for freshwater mussels in the field.
+SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2021, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers, who have had extensive experience surveying for freshwater mussels in the field.
 
 SAMPL is a NetLogo model, and as such it does not have built-in software tests. Instead, testing should be a visual inspection of what is inputted into the model and what is shown in the model interface.
 
@@ -32,5 +32,9 @@ SAMPL is a NetLogo model, and as such it does not have built-in software tests. 
 
 We welcome bug reports and questions in the form of GitHub issues. 
 
-We also welcome code contributions. The source code for this project is located in the NetLogo `Code` tab. To make a contribution, please fork this repository, commit your changes to the fork, and then create a pull request. 
+We also welcome code contributions. The source code for this project is located in the NetLogo `Code` tab. To make a contribution, please fork this repository, commit your changes to the fork, and then create a pull request.
+
+# References
+
+Sanchez, Brittney, and Astrid N. Schwalb. 2021. “Detectability Affects the Performance of Survey Methods: A Comparison of Sampling Methods of Freshwater Mussels in Central Texas.” Hydrobiologia 848 (12–13): 2919–29. https://doi.org/10.1007/s10750-019-04017-y. 
 
