@@ -16,7 +16,7 @@ SAMPL was designed to run on NetLogo 6.4.0 or later. To install NetLogo 6.4.0, g
 
 # Running a Simulation
 
-To run SAMPL, open the NetLogo `Interface` tab and use the green dropdown lists and input boxes to configure the model inputs. Example inputs include sampling method, density of mussels, distribution of mussels, frequency and detectability of mussel species, the output file name, and parameters related to the specific sampling method. When the model is set up correctly, click the grey `Initialize` button. Then click the `Run Model` button. To view metrics click the `Calculate Metrics` button. To save results as a CSV, click `Initialize File` once, followed by `Save Results` after each model run. The results CSV will be found in the Results folder.
+To run SAMPL, open the NetLogo `Interface` tab and use the green dropdown lists and input boxes to configure the model inputs. Example inputs include sampling method, density of mussels, distribution of mussels, frequency and detectability of mussel species, the output file name, and parameters related to the specific sampling method. When the model is set up correctly, click the grey `Initialize` button, then click the `Run Model` button to run the simulation. To view metrics click the `Calculate Metrics` button. To save results as a CSV, click `Initialize File` once, followed by `Save Results` after each model run. The results CSV will be found in the Results folder.
 
 For more detailed instructions consult the model documentation, located in the `Info` tab of the NetLogo model.
 
@@ -24,7 +24,7 @@ To run multiple model scenarios or repeating model scenarios with random variati
 
 # Model Validation & Testing
 
-SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2021, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers, who have had extensive experience surveying for freshwater mussels in the field.
+SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2021, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers who have had extensive experience surveying for freshwater mussels in the field.
 
 SAMPL is a NetLogo model, and as such it does not have built-in software tests. Instead, testing should be a visual inspection of what is inputted into the model and what is shown in the model interface.
 
