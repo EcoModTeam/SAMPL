@@ -1,6 +1,6 @@
 # Survey Analysis for Monitoring Population Levels (SAMPL): An agent-based model to simulate surveys of stationary organisms
 
-Survey Analysis for Monitoring Population Levels (SAMPL) is an Agent-Based Model (ABM) designed to evaluate the performance of various spatial sampling strategies when the target of the sampling effort is a population of stationary organisms. SAMPL is designed for field scientists and other interested parties who wish to understand the strengths and limitations of various sampling strategies. As such, it allows the user to configure the true density, detectability, and distribution of the target organism(s), as well as the sampling strategy and the intensity of the sampling effort. It then returns the estimated density (if applicable), species detection rate, and other information about the sampling effort, which can be compared to the true density and number of organisms of interest. SAMPL was originally developed to simulate freshwater mussel surveys; thus, the organisms of interest are referred to as mussels in the model. However, the sampling strategies replicated in this model could be used to survey other organisms or even inanimate objects as well. 
+Survey Analysis for Monitoring Population Levels (SAMPL) is a spatially-explicit Agent-Based Model (ABM) designed to evaluate the performance of various spatial sampling strategies for estimating population density for biolgoical species. SAMPL is designed for field scientists and other interested parties who wish to understand the strengths and limitations of various sampling strategies. It allows the user to configure the true density, detectability, and distribution of the target organism(s), as well as the sampling strategy and the intensity of the sampling effort. It then quantifies the estimated density (if applicable), species detection rate, and other information about the sampling effort, which can be compared to the true density and number of organisms of interest. SAMPL was originally developed to simulate freshwater mussel surveys and the organisms of interest are referred to as 'mussels' in the model. However, the sampling strategies replicated in this model could be used to survey other organisms or even inanimate objects as well. 
 
 SAMPL allows the user to replicate four sampling strategies: 
 - simple random sampling: random quadrats are sampled.
@@ -20,13 +20,13 @@ To run SAMPL, open the NetLogo `Interface` tab and use the green dropdown lists 
 
 For more detailed instructions consult the model documentation, located in the `Info` tab of the NetLogo model.
 
-To run multiple model scenarios or repeating model scenarios with random variation, make use of the behavior space tool in the tools drop down list. For more information on the behavior space tool consult the NetLogo 6.4.0 User Manual https://ccl.northwestern.edu/netlogo/docs/.
+To run multiple model scenarios or repeating model scenarios with random variation, make use of the behavior space tool in the tools drop down list. For more information on the behavior space tool consult the NetLogo 6.4.0 User Manual https://ccl.northwestern.edu/netlogo/docs/behaviorspace.html.
 
 # Model Validation & Testing
 
-SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2021, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers who have had extensive experience surveying for freshwater mussels in the field.
+SAMPL was designed to simulate freshwater mussel surveys in river and stream habitats and to estimate population densities based on those surveys. Specifically, the model was inspired by a study by Brittany Sanchez and Astrid Schwalb, published in 2021, which compares various freshwater mussel sampling strategies. The model was validated by expert reviewers who have had extensive experience surveying for freshwater mussels in the field.
 
-SAMPL is a NetLogo model, and as such it does not have built-in software tests. Instead, testing should be a visual inspection of what is inputted into the model and what is shown in the model interface.
+SAMPL is a NetLogo model, and does not have built-in software tests. Instead, testing should include traditional line review, debugging, and a visual inspection of what is inputted into the model and what is shown in the model interface.
 
 # Contribution Instructions
 
