@@ -1445,19 +1445,21 @@ Matern Only
 1
 
 @#$#@#$#@
-## WHAT IS IT?
+## WHAT IS IT? 
 
 This model simulates field sampling of freshwater mussels in a riverine system, as described by Sanchez and Schwalb (2021). By adjusting sampling method and intensity and mussel abundance, distribution, and detectability, the user can explore tradeoffs between sampling efficiency and accuracy. The goal of the model is not to predict actual populations of mussels, but rather to inform real-world surveyors of the strengths and limitations of different sampling methods as they relate to estimating population densities and maximizing detection rate.  
 
-## HOW IT WORKS
+## HOW IT WORKS 
 
-The model domain is a grid that represents a channelized river/stream reach that is 50 meters long and 10 meters wide, for a total area of 500 square meters. Grid cell size is initialized as one of three user-defined options: 1m2, 0.5m2, or 0.25m2, representing the size of sampling quadrats used for freshwater mussels. The world is featureless, and habitat quality is assumed to be the same throughout. The model consists of two types of agents: mussels and surveyors, with the former being sessile and the latter being mobile. The model simulates four freshwater mussel sampling techniques: simple random sampling, transect sampling, adaptive-cluster sampling, and timed searches (Strayer and Smith 2003). The former three are quadrat-based methods, while the timed searches involve surveyor agents moving through the model domain. The rules governing agent-behavior depend on the selected survey method and specific options for each. Mussels are initialized across all survey methods, but surveyors are explicitly modeled in the timed search method. In the other three methods, surveyors are implicit with the sampling decisions represented only by the sampling protocol (e.g., if patches are sampled, they are considered “quadrats”). The model is initialized by establishing mussels within the domain, choosing sampling method, and defining the behaviors of the surveyors (if present)
+The model domain is a grid that represents a channelized river/stream reach that is 50 meters long and 10 meters wide, for a total area of 500 square meters. Grid cell size is initialized as one of three user-defined options: 1m2, 0.5m2, or 0.25m2, representing the size of sampling quadrats used for freshwater mussels. The world is featureless, and habitat quality is assumed to be the same throughout. The model consists of two types of agents: mussels and surveyors, with the former being sessile and the latter being mobile. The model simulates four freshwater mussel sampling techniques: simple random sampling, transect sampling, adaptive-cluster sampling, and timed searches (Strayer and Smith 2003). The former three are quadrat-based methods, while the timed searches involve surveyor agents moving through the model domain. The rules governing agent-behavior depend on the selected survey method and specific options for each. Mussels are initialized across all survey methods, but surveyors are explicitly modeled in the timed search method. In the other three methods, surveyors are implicit with the sampling decisions represented only by the sampling protocol (e.g., if patches are sampled, they are considered “quadrats”). The model is initialized by establishing mussels within the domain, choosing sampling method, and defining the behaviors of the surveyors (if present).  
 
 ### Mussel Initialization 
 
-Mussels populate the domain based on parameters set in the user interface: density, spatial distribution, frequency and detectability (see “how to use it” section below). Density represents the overall number of mussels per square meter (m2). Spatial distribution represents how mussels are placed within the model domain and can be one of three general distributions: random, Poisson, or Matérn (described in more detail below). Frequency of occurrence is represented by three different species of mussels (i.e., rare, medium-rare, and common), mimicking real world distributions of mussel species within communities. Detectability represents the probability that mussels will be detected if the quadrat they are located in is sampled. Each mussel is assigned a random number from a uniform distribution between zero and one that represents the probability of detection (henceforth detectability score). If a mussel’s assigned detectability score is below the species-specific detectability threshold defined by the user, that mussel will be detected. Once initialized, mussel location and attributes do not change throughout the model run. If a mussel is detected, it turns red. A mussel can only be detected once. If the mussel is not detected at first, it can be detected if the patch is sampled again.
+Mussels populate the domain based on parameters set in the user interface: density, spatial distribution, frequency and detectability (see “how to use it” section below). Density represents the overall number of mussels per square meter (m2). Spatial distribution represents how mussels are placed within the model domain and can be one of three general distributions: random, Poisson, or Matérn (described in more detail below). Frequency of occurrence is represented by three different species of mussels (i.e., rare, medium-rare, and common), mimicking real world distributions of mussel species within communities. Detectability represents the probability that mussels will be detected if the quadrat they are located in is sampled. Each mussel is assigned a random number from a uniform distribution between zero and one that represents the probability of detection (henceforth detectability score). If a mussel’s assigned detectability score is below the species-specific detectability threshold defined by the user, that mussel will be detected. Once initialized, mussel location and attributes do not change throughout the model run. If a mussel is detected, it turns red. A mussel can only be detected once. If the mussel is not detected at first, it can be detected if the patch is sampled again. 
 
-### Sampling Method and Surveyor Behaviors
+### Sampling method and surveyor behaviors 
+
+ 
 
 In the simple random sample method, mussels are initialized at a given density and distribution, then a user-defined number of quadrates are placed randomly throughout the domain. If a mussel intersects with a quadrat, it may be detected, according to its detectability.  
 
@@ -1468,35 +1470,64 @@ In the adaptive cluster method, a user-defined number of initial sample quadrats
 The timed search method is the most complex and involves the surveyor agent. During initialization, in addition to mussels being placed in the domain, three surveyor agents are initialized. Surveyors are parameterized as a Netlogo breed. Surveyors begin evenly spaced and proceed from the left to the right using a correlated random walk. During the model run, surveyors move according to one of two behavioral states: searching or traveling. When a surveyor is searching, each patch/grid cell is searched for mussels, and mussels may be detected, according to its detectability score. To account for the fact that timed searches may be less comprehensive than quadrat searches, the user can reduce the probability of detection for all mussel species with the `detect-reduction` input. During the travel behavior, surveyors move through the grid cells without searching. We assume that it takes surveyors 2 minutes to search 1 square meter, and 3 seconds to travel through 1 square meter (Smith et al. 2001, Smith and Crabtree 2010, Bird et al. 2022). This estimated time is tabulated and used to calculate mussels-per-person-hour, which is a metric of catch per unit effort (CPUE) that represents the number of individual mussels captured per cumulative hours of search time (cumulative across number of surveyors). Because this model uses three surveyors, one person-hour is equivalent to 20 minutes of searching (3 surveyors x 20 min = 60 min total). 
 
 After detecting a mussel, surveyors begin localized searching where the radius of movement is decreased and they search neighboring and nearby cells. Surveyors can observe other surveyors and will move towards surveyors that are finding mussels if they have not detected mussels recently themselves. Surveyors avoid colliding with other surveyors and with the edges of the model domain. To ensure adequate coverage of the world, a surveyor can only spend up to one fourth of their allotted time in each quarter of the model domain (lengthwise). If surveyors are still finding mussels but their time in a given quarter has ended, they travel ahead to the next quarter. 
- 
 
-## HOW TO USE IT
+## HOW TO USE IT 
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Under “Model Setup”, the user sets the quadrat size and the sampling method. Quadrat size (edge length) can be 1 meter, 0.5 meter, or 0.25 meter. Quadrat size is synonymous with patch size in this model. The four sampling methods to choose from are simple random sample, transect, adaptive cluster, and timed search. These each have unique inputs.  
 
-## THINGS TO NOTICE
+Under “Density” the user can input the number of mussels per square meter, which determines how many mussels are populated into the world. If the mussel density is set to 1, that means on average there is 1 mussel per square meter, so there would be a total of 500 mussels.  
 
-(suggested things for the user to notice while running the model)
+Under “File Name” the user can name a file to output results to. Note: if this name is not changed, the program will overwrite any results saved therein!  
 
-## THINGS TO TRY
+Under “Distribution”, the user sets the spatial distribution for the mussels, as well as specific parameters for clumps (if using). Random distribution will distribute mussels randomly throughout the reach with no discernible pattern. Clumped Poisson will distribute mussels in Poisson-pattern clumps, and Clumped Matern will distribute them in Matern-pattern clumps, which are meant to simulate predicted spatial distribution of mussels (Smith et al. 2011). Number of groups determines how many clumps exist (for both Poisson and Matern clumps, provided a Matern clump placement is set to “Randomly placed.” Poisson mean represents the mean distance each mussel is from the center of the Poisson clump, and determines how tightly clustered each clump is (if using Poisson clump distribution). Each Poisson clump is placed randomly in the reach. Clumps may overlap, especially with loose clumps or high mussel density. If Clumped Matern is chosen, the clumps are represented by light blue patches. The user can choose between 4 preset clump designs, or the “Randomly placed” setting in which the inputted number of clumps will be randomly distributed. Design 1 clumps the mussels in an ellipse along one shore, replicating a pattern often seen in the field. Design 2 includes the shoreline clump, plus a circular clump in the middle of the channel. Design 3 includes the shoreline clump and the mid-channel clump, plus 2 randomly placed elliptical clumps. Design 4 includes only the shoreline clump and 2 randomly placed elliptical clumps.  
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Under “Frequency and Detectability”, the user sets the frequency and detectability for each of the three mussel species (rare, medium-rare, and common). Frequency values for the three species must add up to 1. Frequency for each species is equal to the proportion of the total mussel population that consists of that species. Therefore, the rare species should have a lower frequency than the medium-rare species, which in turn should have a lower frequency than the common species. Detectability indicates the probability that the mussel will be detected should the patch it is located in be searched. Detectability can be the same or different across all species but cannot be less than 0 or greater than 1. A detectability of 1 means that a surveyor (or quadrat) that intersects with a mussel will detect it 100% of the time; a detectability of 0 means that a mussel will never be detected. This parameter allows the user to account for factors that may affect detectability in the field, such as mussel size, texture, color, and burrowing depth. In the case of timed searches, if a mussel is not detected by a surveyor, it may still be detected in subsequent searches. For example, if a mussel has a detectability of 0.5 and is not detected at first, there is still a 50% chance it will be detected if the quadrat is searched again. Note that species detectability here refers to whether an individual mussel of a given species will be detected, not the probability that a species of mussel will be detected in the entire sampling area, so a species could be classified as rare in the study area but may still have high detectability (for example, a rare species that is easy to search for because it tends to be found sitting on top of the substrate). 
 
-## EXTENDING THE MODEL
+Under “Simple Random Sample”, the user may set the number of quadrats to be used in the simple random sample method.  
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+Under “Transect”, the user may set transect spacing and the number of quadrats in each transect. Note that the user specifies the spacing of transects (i.e., number of quadrats/patches between individual transects) rather than the total number of transects sampled, which helps ensure adequate coverage of the study area. Given that quadrat/patch size may differ according to user input (0.25, 0.5, or 1m), the number of transects and the actual measured distance between transects will differ according to selected quadrat-size (e.g., a transect spacing of 10 produces 5 transects distributed 10m apart when quadrat-size is set to 1, whereas the same spacing produces 10 transects distributed 5m apart when quadrat-size is set to 0.5). 
 
-## NETLOGO FEATURES
+Under “Adaptive Cluster”, the user may set the number of initial clusters (quadrats) and the maximum number of quadrats. The model run stops if the maximum number of quadrats is reached (or if no more mussels are detected as detailed above). Note that limiting the number of quadrats that are sampled introduces bias in density estimations (Turk & Borkowski 2005). However, limitations are often necessary to prevent prohibitively long search times. For this reason, Adaptive Cluster Sampling is typically only recommended at sites with low mussel densities (Turk & Borkowski 2005). 
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+Under “Timed Search” the user may set parameters for the timed search method. The "variable search mode" toggle tells the surveyors whether or not they should be searching the entire time. If it is off, the surveyors continually search for mussels until and unless their allotted time in a quarter is exceeded, in which case they pause searching to move to the next quarter. If variable search mode is on, the surveyors alternate between searching and traveling for intervals of 10 quadrats. This is to account for the fact that a surveyor may move to a new area if their searching is unsuccessful. "Person-hours-to-search" determines the total number of person-hours that a model run will take. In a given model run, this number might be exceeded by a few seconds to account for traveling time . "Detect reduction" subtracts a user-specified amount from the species detectability values, to account for the fact that surveyors may search areas less thoroughly during a timed search than other methods, reducing the probability of detecting mussels. If detect reduction is set to 0, there is no reduction in detectability compared to other survey methods (beyond those associated with each mussel species). If detect-reduction is set to 1, no mussels will be detected, regardless of the individual species’ detectabilities.  
 
-## RELATED MODELS
+All methods require the model to be initialized, but only the adaptive cluster and timed search methods require the `Run Model` button to run through iterative sampling steps. When the simulation is done running, summarizing metrics will appear in the Mussel Sampling Metrics output box. If desired, the user can click the `Initialize File` and `Save Results` button to save results to a CSV file. 
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+## THINGS TO TRY 
 
-## CREDITS AND REFERENCES
+Explore how changing mussel distributions affect sampling accuracy. Do the sampling methods improve or worsen when mussels are more or less clustered?  
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+Examine how detectability influences sampling performance. This will be especially relevant for adaptive cluster sampling and timed searches, as these sampling methods change course based on whether mussels are detected. 
+
+## EXTENDING THE MODEL 
+
+While this model assumes all habitat to be of equal quality, this is oftentimes untrue in the real world. Especially while performing timed searches, surveyors often use prior knowledge to prioritize searching areas of perceived good mussel habitat (e.g. boulders, stream edges, etc.). Similarly, surveyors may be more reluctant to search areas that are more difficult to access (e.g. deep or fast flowing water, thick vegetation, natural hazards, etc.). This model might be extended by creating habitat that attracts or deters surveyors during timed searches. These same features might make a mussel more or less likely to be detected (for example, it may be more difficult to find a mussel in fast flowing water), so the model could be extended to include spatial variation in detectability. 
+
+The model could also be extended to accommodate different sampling strategies. For example, there are many variations of adaptive cluster sampling which include various rules for limiting cluster growth, or thresholds for expanding clusters. Also, the rules and strategies used in timed searches may vary considerably according to research goals, experience level, and researcher preferences.  
+
+## NETLOGO FEATURES 
+
+This NetLogo model uses a custom function to initialize a CSV file and to write results at the end of model runs. When used in combination with the Behavior Space tool, we recommend calling the `initialize-file` function as a pre-experiment command and calling the `save-results` function as a post run command.  
+
+## RELATED MODELS 
+
+This model adapts components of several existing NetLogo Models. For example, in timed searches surveyor edge avoidances was inspired by the Bounce Example in the NetLogo Code Examples and the correlated random walk underlying the surveyor movement was adapted from the Mushroom Hunt model from Railsback and Grimm. 
+
+## CREDITS AND REFERENCES 
+
+Bird, C.T., Kaller, M.D., Pasco, T.E., Kelso, W.E. Microhabitat and landscape drivers of richness and abundance of freshwater mussels (Unionida: Unionidae) in a coastal plain river. Applied Sciences 12(20), 10300 (2022). https://doi.org/10.3390/app122010300 
+
+Sanchez, B., Schwalb, A.N. Detectability affects the performance of survey methods: a comparison of sampling methods of freshwater mussels in Central Texas. Hydrobiologia 848, 2919–2929 (2021). https://doi.org/10.1007/s10750-019-04017-y 
+
+Smith, T.A., Crabtree, D. Freshwater mussel (Unionidae: Bivalvia) distributions and densities in French Creek, Pennsylvania. Northeastern Naturalist 17(3), 387-414 (2010). https://doi.org/10.1656/045.017.0304 
+
+Smith, D.R., Villella, R.F., Lemarie, D.P. Survey protocol for assessment of endangered freshwater mussels in the Allegheny River, Pennsylvania. Journal of the North American Benthological Society 20(1), 118-132 (2001). https://doi.org/10.2307/1468193 
+
+Smith, D.R., Rogala, J.T., Gray, B.R., Zigler, S.J., Newton, T.J. Evaluation of single and two-stage adaptive sampling designs for estimation of density and abundance of freshwater mussels in a large river. River Research and Applications 27, 122-133 (2011). https://doi.org/10.1002/rra.1334 
+
+Strayer, D.L., Smith, D.R. A Guide to sampling freshwater mussel populations. Monograph 8. Bethesda, Maryland: American Fisheries Society (2003). 
+
+Turk, Philip, and John J. Borkowski. A Review of Adaptive Cluster Sampling: 1990-2003. Environmental and Ecological Statistics 12 (1): 55–94 (2005). https://doi.org/10.1007/s10651-005-6818-0. 
 @#$#@#$#@
 default
 true
