@@ -45,7 +45,7 @@ Sampling intensity can be increased or decreased for each technique and tested w
 
 One of the fundamental goals of ecological field studies is to quantify the true abundance of species in nature. This information is used to generate conservation policy, manage natural resources, evaluate the impact of environmental stressors, and more `[@Johnston:2015]`. However, in the field, the true population parameters are almost never known due to incomplete sampling (i.e., not every individual is counted), sampling errors, environmental and demographic stochasticity, and so forth, making it difficult to evaluate bias among sampling strategies `[@Elphick:2008; Albert:2010]`. SAMPL allows users to test various sampling strategies while the true density and distribution are known, allowing users to evaluate the strategies that maximize accuracy/detection rate, while minimizing sampling effort. SAMPL is designed to assist those who design and implement sampling protocols in the field or those who wish to evaluate the methodological advantages and disadvantages of sampling protocols. 
 
-While there are other software tools designed to simulate spatial sampling strategies, e.g. the ArcGIS Pro sampling toolkit `[@ArcGIS Pro:2024]`, SAMPL is unique because it is open-source, provides a user-friendly graphical user-interface, and simulates specialized sampling methods, like adaptive cluster sampling and timed searches, across different spatial configurations of target organisms.  
+While there are other software tools designed to simulate spatial sampling strategies, e.g. the ArcGIS Pro sampling toolkit `[@Esri:2024]`, SAMPL is unique because it is open-source, provides a user-friendly graphical user-interface, and simulates specialized sampling methods, like adaptive cluster sampling and timed searches, across different spatial configurations of target organisms.  
 
 # Functionality
 
@@ -53,7 +53,7 @@ SAMPL is implemented in NetLogo `[@Wilensky:1999]` and was originally designed t
 
 ![Figure 1: Four spatial sampling methods, as seen in the SAMPL model interface.\label{fig:example}](JOSS_figure.png)
 
-The survey techniques featured in SAMPL are based on a field study by Sanchez and Schwalb (2021), which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. `[@Pooler:2005]`). A description of each sampling method is as follows: 
+The survey techniques featured in SAMPL are based on a field study by `[@Sanchez:2021]`, which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. `[@Pooler:2005]`). A description of each sampling method is as follows: 
 
 - Simple random sampling: random quadrats are sampled. A quadrat is a frame used to define a single unit of an area of interest in field sampling. 
 
