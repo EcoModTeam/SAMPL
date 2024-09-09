@@ -43,48 +43,25 @@ Sampling intensity can be increased or decreased for each technique and tested w
 
 # Statement of need
 
-One of the fundamental goals of ecological field studies is to quantify the true abundance of species in nature. This information is used to generate conservation policy, manage natural resources, evaluate the impact of environmental stressors, and more (Johnston et al., 2015). However, in the field, the true population parameters are almost never known due to incomplete sampling (i.e., not every individual is counted), sampling errors, environmental and demographic stochasticity, and so forth, making it difficult to evaluate bias among sampling strategies (Elphick, 2008; Albert et al., 2010). SAMPL allows users to test various sampling strategies while the true density and distribution are known, allowing users to evaluate the strategies that maximize accuracy/detection rate, while minimizing sampling effort. SAMPL is designed to assist those who design and implement sampling protocols in the field or those who wish to evaluate the methodological advantages and disadvantages of sampling protocols. 
+One of the fundamental goals of ecological field studies is to quantify the true abundance of species in nature. This information is used to generate conservation policy, manage natural resources, evaluate the impact of environmental stressors, and more `[@Johnston:2015]`. However, in the field, the true population parameters are almost never known due to incomplete sampling (i.e., not every individual is counted), sampling errors, environmental and demographic stochasticity, and so forth, making it difficult to evaluate bias among sampling strategies `[@Elphick:2008; Albert:2010]`. SAMPL allows users to test various sampling strategies while the true density and distribution are known, allowing users to evaluate the strategies that maximize accuracy/detection rate, while minimizing sampling effort. SAMPL is designed to assist those who design and implement sampling protocols in the field or those who wish to evaluate the methodological advantages and disadvantages of sampling protocols. 
 
-While there are other software tools designed to simulate spatial sampling strategies, e.g. the ArcGIS Pro sampling toolkit (Esri, 2024), SAMPL is unique because it is open-source, provides a user-friendly graphical user-interface, and simulates specialized sampling methods, like adaptive cluster sampling and timed searches, across different spatial configurations of target organisms.  
+While there are other software tools designed to simulate spatial sampling strategies, e.g. the ArcGIS Pro sampling toolkit `[@ArcGIS Pro:2024]`, SAMPL is unique because it is open-source, provides a user-friendly graphical user-interface, and simulates specialized sampling methods, like adaptive cluster sampling and timed searches, across different spatial configurations of target organisms.  
 
 # Functionality
 
-SAMPL is implemented in NetLogo (Wilensky, 1999) and was originally designed to simulate surveys for freshwater mussels in riverine habitats. The model refers to target organisms as ‘mussels’, and spatial units are in meters. However, SAMPL can be used to represent a variety of sessile organisms, and spatial units could be scaled up or down accordingly.
+SAMPL is implemented in NetLogo `[@Wilensky:1999]` and was originally designed to simulate surveys for freshwater mussels in riverine habitats. The model refers to target organisms as ‘mussels’, and spatial units are in meters. However, SAMPL can be used to represent a variety of sessile organisms, and spatial units could be scaled up or down accordingly.
 
 ![Figure 1: Four spatial sampling methods, as seen in the SAMPL model interface.\label{fig:example}](JOSS_figure.png)
 
-The survey techniques featured in SAMPL are based on a field study by Sanchez and Schwalb (2021), which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. Pooler and Smith, 2005). A description of each sampling method is as follows: 
+The survey techniques featured in SAMPL are based on a field study by Sanchez and Schwalb (2021), which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. `[@Pooler:2005]`). A description of each sampling method is as follows: 
 
 - Simple random sampling: random quadrats are sampled. A quadrat is a frame used to define a single unit of an area of interest in field sampling. 
 
 - Transect sampling: transects are placed evenly across the area of interest in a parallel orientation, and quadrats are sampled randomly along the transects. 
 
-- Adaptive cluster sampling: quadrats are randomly sampled. If a target organism is detected, the four direct neighboring quadrats are also sampled. This repeats until no more organisms are detected or the sampled 'cluster' reaches the edge of the model grid (Thompson, 1990). 
+- Adaptive cluster sampling: quadrats are randomly sampled. If a target organism is detected, the four direct neighboring quadrats are also sampled. This repeats until no more organisms are detected or the sampled 'cluster' reaches the edge of the model grid `[@Thompson:1990]`. 
 
 - Timed searches: a simulated surveyor 'searches' the area of interest by traveling in a correlated random walk. When the surveyor encounters a target organism, it turns more tightly, thus simulating human search behavior. 
-
-# Citations
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-
-# Figures
-
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
-
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
 
 # Acknowledgements
 
