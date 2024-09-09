@@ -53,7 +53,7 @@ SAMPL is implemented in NetLogo [@Wilensky:1999] and was originally designed to 
 
 ![Figure 1: Four spatial sampling methods, as seen in the SAMPL model interface.\label{fig:example}](JOSS_figure.png)
 
-The survey techniques featured in SAMPL are based on a field study by [@Sanchez:2021], which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. [@Pooler:2005]). A description of each sampling method is as follows: 
+The survey techniques featured in SAMPL are based on a field study by [@Sanchez:2021], which compared adaptive cluster sampling, transect sampling, and timed searches for freshwater mussels in Texas rivers. Simple random sampling was added to SAMPL because it is a common sampling method and it is frequently used as the standard against which other methods are compared to (e.g. @Pooler:2005). A description of each sampling method is as follows: 
 
 - Simple random sampling: random quadrats are sampled. A quadrat is a frame used to define a single unit of an area of interest in field sampling. 
 
