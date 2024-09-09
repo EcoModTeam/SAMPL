@@ -32,7 +32,7 @@ affiliations:
  - name: Biology Department, Texas State University, San Marcos, TX 78666, USA
    index: 4
 date: 9 September 2024
-bibliography: paper.bib
+bibliography: paper/paper.bib
 ---
 
 # Summary
