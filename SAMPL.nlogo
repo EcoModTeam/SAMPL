@@ -31,8 +31,11 @@ globals [
   poisson-clump-sizes ;list to store output of clump-size function
   timed-search-minute-counter ;keeps track or random walk time
   person-hours ;number of person hours (calc depends on search method)
+  mussels-per-surveyor-list ;a list holding total mussels detected by each surveyor
   total-num-quadrats ;the number of cells/patches where quadrat = TRUE
+  total-quadrats-surveyed ;the sum of the number of quadrats searched by each surveyor
   estimated-mussel-density ;number of mussels detected/number of square meters sampled
+  sample-cv ;coefficient of variation for detected mussels
   mussels-per-person-hour ;number of mussels detected/person hours searched
   hh-estimated-density-m ;#hh estimation of true population mean
   hh-estimated-total-pop ;hh estimate of total population
@@ -74,6 +77,8 @@ turtles-own [
   detected-id ;the surveyor and detected step so we know when and by who mussel was detected
   distance-from-parent-cell ;The distance from the patch that is the center of poisson clump
   parent-patch ;identifies which patch is the parent patch (center of poisson distribution. Used to determine how far away
+  quadrats-searched ;the number of quadrats a surveyor has searched
+  mussels-found ;the number of mussels a surveyor detects
   tick-since-last-find ;time since surveyor last found a mussel
   search-mode ;if they surveyor is searching (T) or walking (F)
   out-of-time? ;T/F, if the surveyor has used more than a x/4 time but has not reached x/4 distance through model (only applies to before reached destination)
@@ -400,7 +405,6 @@ to set-transects
 
   set transects patches with [transect-ID > 0]
   set number-of-transects max [transect-ID] of patches with [transect? = TRUE]
-  print number-of-transects
 
  let tmp2 1
   while [tmp2 <= number-of-transects] [
@@ -533,6 +537,8 @@ to add-surveyors
       setxy xcord x
       set size 4
       set color yellow
+      set quadrats-searched 0
+      set mussels-found 0
       set tick-since-last-find 999
       set search-mode one-of [ true false ]
       set counter 0
@@ -667,6 +673,7 @@ to timed-search
   ;patch with surveyors on it becomes quadrat
   ask surveyors [
     ifelse search-mode = True [
+      set quadrats-searched quadrats-searched + 1
       ask patch-here [set quadrat? TRUE]
       ask mussels-here with [detected? = FALSE] [
         set detected? detect
@@ -690,6 +697,7 @@ to timed-search
       any? mussels-here with [detected? = TRUE and detected-id = (word myself  "-" ticks) ]
       [
         set tick-since-last-find 0
+        set mussels-found mussels-found + count mussels-here with [detected? = TRUE and detected-id = (word myself  "-" ticks)]
         set pcolor green
       ]
       search-mode = True
@@ -716,19 +724,24 @@ to calculate-metrics
   set med-rare-mussels-sampled count (mussels with [quadrat? = TRUE and species = "med-rare"])
 
   set total-num-quadrats count patches with [quadrat? = TRUE]
+  set total-quadrats-surveyed sum [quadrats-searched] of surveyors
 
   set total-mussels-detected count mussels with [detected? = TRUE]
   set rare-mussels-detected count (mussels with [quadrat? = TRUE and species = "rare" and detected? = TRUE])
   set common-mussels-detected count(mussels with [quadrat? = TRUE and species = "common" and detected? = TRUE])
   set med-rare-mussels-detected count (mussels with [quadrat? = TRUE and species = "med-rare" and detected? = TRUE])
 
+  ;create empty list to hold surveyor counts of mussels detected
+  set mussels-per-surveyor-list [0 0 0]
 
   ;if method is transect, calculate estimated density
   if sampling-method = "transect" or sampling-method = "simple-random-sample"[
       ;estimated mussel density is the number of mussels found/quadrats samples
       set estimated-mussel-density total-mussels-detected / quadrats-to-meters-sq total-num-quadrats
+      set sample-cv cv
 
     output-print (word "estimated density (m^2): " estimated-mussel-density)
+    output-print (word "coefficient of variation: " sample-cv)
     output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
     output-print (word "total mussels found: " total-mussels-detected)
   ]
@@ -746,9 +759,17 @@ to calculate-metrics
   ;if method is random walk, calculate mussels per person hour
   if sampling-method = "timed-search" [
 
+    ;create empty list to hold surveyor counts of mussels detected
+    set mussels-per-surveyor-list []
+
+    ;ask surveyors to add mussels found to list
+    ask surveyors [
+      set mussels-per-surveyor-list fput mussels-found mussels-per-surveyor-list
+    ]
+
     ;mussels per person hour is the number of mussels per each hour searching per each surveyor
     set mussels-per-person-hour total-mussels-detected / (timed-search-minute-counter / 60)
-
+    set sample-cv "NA"
     output-print (word "total person-hours: " (timed-search-minute-counter / 60))
     output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
     output-print (word "total mussels found: " total-mussels-detected)
@@ -758,11 +779,13 @@ to calculate-metrics
   ;if the method is adapt, calculate hh metrics
   if sampling-method = "adaptive-cluster" [
     calc-hh-estimates
+    set sample-cv cv
 
    output-print word "estimated density (HH): " hh-estimated-density-m
    output-print word "estimated pop: " hh-estimated-total-pop
    output-print word "estimated density var: " hh-estimated-density-var
    output-print word "estimated pop var: " hh-estimated-pop-var
+   output-print (word "coefficient of variation: " sample-cv)
    output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
    output-print (word "mussels found: " total-mussels-detected)
   ]
@@ -797,6 +820,10 @@ to initialize-file
   file-type "Total Medium Mussels,"
   file-type "Total Common Mussels,"
 
+  file-type "Detectability of Rare Mussels,"
+  file-type "Detectability of Medium-Rare Mussels,"
+  file-type "Detectability of Common Mussels,"
+
   file-type "Spatial Distribution,"
   file-type "Number of clumps,"
   file-type "Poisson mean,"
@@ -828,8 +855,15 @@ to initialize-file
   file-type "Common Mussels Detected,"
 
   file-type "Person Hours Searched,"
+  file-type "Sum of Quadrats per Surveyor,"
+
+  file-type "Mussels detected by Surveyor 1,"
+  file-type "Mussels detected by Surveyor 2,"
+  file-type "Mussels detected by Surveyor 3,"
+
 
   file-type "Estimated Density,"
+  file-type "Sample CV,"
   file-type "Mussels Per Person Hour,"
   file-type "HH metric,"
   file-print "HH Variance," ;last line must be file-print
@@ -858,6 +892,10 @@ to save-results
   file-type (word total-rare-mussels ",")
   file-type (word total-med-rare-mussels ",")
   file-type (word total-common-mussels ",")
+
+  file-type (word detect-rare ",")
+  file-type (word detect-med-rare ",")
+  file-type (word detect-common ",")
 
   file-type (word spatial-distribution ",")
   file-type (word num-groups ",")
@@ -890,8 +928,14 @@ to save-results
   file-type (word common-mussels-detected ",")
 
   file-type (word person-hours ",")
+  file-type (word total-quadrats-surveyed ",")
+
+  file-type (word item 0 mussels-per-surveyor-list ",")
+  file-type (word item 1 mussels-per-surveyor-list ",")
+  file-type (word item 2 mussels-per-surveyor-list ",")
 
   file-type (word estimated-mussel-density ",")
+  file-type (word sample-cv ",")
   file-type (word mussels-per-person-hour ",")
   file-type (word hh-estimated-density-m ",")
   file-print (word hh-estimated-density-var ",")
@@ -920,6 +964,30 @@ to-report var-to-mean-ratio
   let mean-mussels-on-patches mean [mussels-on-patch] of patches
   let patch-mussel-var ( sum [((mussels-on-patch - mean-mussels-on-patches) ^ 2)] of patches ) / n
   report (patch-mussel-var / mean-mussels-on-patches)
+end
+
+to-report cv
+  let quadrats patches with [quadrat? = TRUE]
+
+  let mussels-per-quadrat-list []
+
+  ask quadrats [
+    let mussels-on-self mussels-on self
+    let detected-mussels-on-patch count mussels-on-self with [detected? = TRUE]
+    set mussels-per-quadrat-list fput detected-mussels-on-patch mussels-per-quadrat-list
+  ]
+
+  let mean-count mean mussels-per-quadrat-list
+
+  let std-dev standard-deviation mussels-per-quadrat-list
+
+  let coef-var "NA"
+
+  if mean-count != 0
+    [set coef-var std-dev / mean-count]
+
+  report coef-var
+
 end
 
 
@@ -1196,7 +1264,7 @@ CHOOSER
 matern-clump-placement
 matern-clump-placement
 "Randomly placed" "One shore only" "One shore; one middle" "One shore; one middle; 2 additional" "One shore; 2 additional"
-1
+0
 
 OUTPUT
 1051
