@@ -61,15 +61,14 @@ patches-own [
   major-axis ;half of the longest length in the ellipse. Formula changes based on custom matern size/locations (ie shore, center, etc)
   minor-axis ;half the shorter length in the ellipse.
   heading-ellipse ;ellipse orientation (variable is angle)
-  network-summary ;summary of type of mussels that were sampled.
   mussels-on-patch ;the number of mussels on each patch
 ]
 
 
 ;Attributes that are unique to class turtle (mussels, surveyors)
 turtles-own [
+  ;MUSSEL ATTRIBUTES
   species ;What species is the mussel? Can be rare, med-rare, or common
-  quarter ;what quarter of the model space the agent is in. from left to right quarters are 1,2,3,4
   detectability ;a random number between 0 and 1. If it is less than the detect-threshold it will be detected
   detect-threshold ;a species specific number. If detectability < detect-threshold the mussel will be detected
   detected? ;True or False. Was the mussel detected?
@@ -77,6 +76,9 @@ turtles-own [
   detected-id ;the surveyor and detected step so we know when and by who mussel was detected
   distance-from-parent-cell ;The distance from the patch that is the center of poisson clump
   parent-patch ;identifies which patch is the parent patch (center of poisson distribution. Used to determine how far away
+
+  ;SURVEYOR ATTRIBUTES
+  quarter ;what quarter of the model space the agent is in. from left to right quarters are 1,2,3,4
   quadrats-searched ;the number of quadrats a surveyor has searched
   mussels-found ;the number of mussels a surveyor detects
   tick-since-last-find ;time since surveyor last found a mussel
@@ -107,7 +109,7 @@ no-display ;turns off display until display is called (so user does not see upda
   set-world-size ;call to custom functionthat sets patch size, world size, etc
   set color-list [15 25 35 45 55 65 75 85 115 125 135] ;creates a list of colors for adaptive clusters
   set color-list2 color-list ;save a copy of color-list in color-list2
-  set adapt? TRUE ;variable for determining when to end adaptive clusters
+  set adapt? FALSE ;variable for determining when to end adaptive clusters
   set output-file-mussels (word "Results/" file-name ".csv" )
 
   ;initialized the habitat patches
@@ -435,7 +437,7 @@ to create-clusters
 ask mussels-on patches with [quadrat? = TRUE][set detected? detect]
 ask mussels with [detected? = TRUE] [set color red]
 
-set clusters patches with [cluster? = TRUE]
+set total-clusters count patches with [cluster?]
 
 end
 
