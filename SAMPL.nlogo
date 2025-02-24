@@ -1090,7 +1090,7 @@ CHOOSER
 sampling-method
 sampling-method
 "simple-random-sample" "transect" "adaptive-cluster" "timed-search"
-1
+3
 
 INPUTBOX
 931
@@ -1908,6 +1908,88 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="timed_search_varying_detectability" repetitions="500" runMetricsEveryStep="false">
+    <preExperiment>set file-name "timed_search_varying_detectability"
+initialize-file</preExperiment>
+    <setup>initialize</setup>
+    <go>go</go>
+    <postRun>save-results</postRun>
+    <enumeratedValueSet variable="quadrat-size">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sampling-method">
+      <value value="&quot;timed-search&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="person-hours-to-search">
+      <value value="4.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="variable-search-mode">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="detect-reduction">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mussels-per-meter">
+      <value value="0.1"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spatial-distribution">
+      <value value="&quot;random&quot;"/>
+      <value value="&quot;Clumped-Poisson&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num groups">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="poisson-mean-meters">
+      <value value="6"/>
+    </enumeratedValueSet>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="1"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="1"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="1"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+    </subExperiment>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default

@@ -1,4 +1,1014 @@
+extensions [GIS matrix table csv];
 
+
+;variable that has the same value for all the agents in the model across all procedures
+globals [
+  width-bw-transects ;width between transects
+  transects ;patches in a transect
+  #-of-mussels ;total number of mussels in the model
+  total-rare-mussels ;total number of rare mussels in model
+  total-med-rare-mussels ;total number of medium rare mussels in model
+  total-common-mussels ;total number of common mussels in model
+  clusters ;patches in an adaptive sampling cluster. If sampled it will be TRUE. else it will be 0
+  total-clusters ;number of patches where in an adaptive sampling cluster. cluster = True
+  color-list ;color list for clusters. The color-list is sampled without replacement for clusters, so color-list2 holds the original color list.
+  color-list2 ;saved copy of original color-list
+  adapt? ;a boolean variable that is TRUE when adaptive sampling should continue.
+  maxX maxY ;max x coordinate and max y coordinate
+  newPatchSize ;cell size
+  musselSize ;size of mussels dots in UI
+  output-file-mussels ;the filepath where results will be written. Partially defined by file-name input
+  total-mussels-sampled ;the number of mussels that are in patches where quadrat = TRUE. The number of mussels that are sampled
+  rare-mussels-sampled ;same but only counting rare mussels
+  common-mussels-sampled ;same but only counting common mussels
+  med-rare-mussels-sampled ;same but only counting medium rare mussels
+  total-mussels-detected ;number of mussels that are detected
+  rare-mussels-detected ;same but only counting rare mussels
+  common-mussels-detected ;same but with common-mussels
+  med-rare-mussels-detected ;same but with medium rare mussels
+  number-of-transects ;number of transects
+  mussel-group-sizes ;a list that holds all of the mussel group sizes
+  poisson-clump-sizes ;list to store output of clump-size function
+  timed-search-minute-counter ;keeps track or random walk time
+  person-hours ;number of person hours (calc depends on search method)
+  mussels-per-surveyor-list ;a list holding total mussels detected by each surveyor
+  total-num-quadrats ;the number of cells/patches where quadrat = TRUE
+  total-quadrats-surveyed ;the sum of the number of quadrats searched by each surveyor
+  estimated-mussel-density ;number of mussels detected/number of square meters sampled
+  sample-cv ;coefficient of variation for detected mussels
+  mussels-per-person-hour ;number of mussels detected/person hours searched
+  hh-estimated-density-m ;#hh estimation of true population mean
+  hh-estimated-total-pop ;hh estimate of total population
+  hh-estimated-density-var ;hh variance of estimated population mean
+  hh-estimated-pop-var ;hh variance of estimated total population
+  var-mean-ratio ;calculate the variance to mean ratio (using quadrat size)
+]
+
+
+;Attributes that are unique to the class patch
+patches-own [
+  transect? ;True or False. If the patch is in a transect or not.
+  transect-ID ;The ID of the transect that the patch is in. If it’s zero, it’s not in a transect.
+  quadrat? ;True or False. If the patch is sampled
+  cluster? ;True or False. Is the patch in a cluster
+  cluster-ID ;The ID of the cluster that the patch is in.
+  cluster-ring ;What iteration of adaptive sampling is the patch in. If it is in initial random sample it is 0, if it is in the next iteration it is 1. etc.
+  cluster-edge? ;if the patch is at the edge of a cluster or not
+  parent-patch? ;True or False. If the patch is the center of a poisson cluster
+  ellipse-set ;set of patches that compose an ellipse
+  ellipse-center? ;True or False. Is the patch the center of an ellipse?
+  ellipse? ;Is the patch in an ellipse
+  major-axis ;half of the longest length in the ellipse. Formula changes based on custom matern size/locations (ie shore, center, etc)
+  minor-axis ;half the shorter length in the ellipse.
+  heading-ellipse ;ellipse orientation (variable is angle)
+  mussels-on-patch ;the number of mussels on each patch
+]
+
+
+;Attributes that are unique to class turtle (mussels, surveyors)
+turtles-own [
+  ;MUSSEL ATTRIBUTES
+  species ;What species is the mussel? Can be rare, med-rare, or common
+  detectability ;a random number between 0 and 1. If it is less than the detect-threshold it will be detected
+  detect-threshold ;a species specific number. If detectability < detect-threshold the mussel will be detected
+  detected? ;True or False. Was the mussel detected?
+  tick-detected ;the tick when the mussel was detected random walk search
+  detected-id ;the surveyor and detected step so we know when and by who mussel was detected
+  distance-from-parent-cell ;The distance from the patch that is the center of poisson clump
+  parent-patch ;identifies which patch is the parent patch (center of poisson distribution. Used to determine how far away
+
+  ;SURVEYOR ATTRIBUTES
+  quarter ;what quarter of the model space the agent is in. from left to right quarters are 1,2,3,4
+  quadrats-searched ;the number of quadrats a surveyor has searched
+  mussels-found ;the number of mussels a surveyor detects
+  tick-since-last-find ;time since surveyor last found a mussel
+  search-mode ;if they surveyor is searching (T) or walking (F)
+  out-of-time? ;T/F, if the surveyor has used more than a x/4 time but has not reached x/4 distance through model (only applies to before reached destination)
+  destination ;where the surveyor is going (opposite side as where they started)
+  reached-destination-once? ;T/F, if the surveyor reached other side at least once
+  reached-destination? ;T/F, if the surveyor reached the destination
+  cornered? ;T/F, if the surveyor is in a corner
+  at-horizontal-edge? ;T/F, if the surveyor is at top bottom edge
+  at-vertical-edge? ;T/F, if the surveyor is at a left right edge
+  counter ;counts ticks to tell if surveyor is in search mode or not
+]
+
+
+;breed - defines plural and singular of breed
+breed [mussels mussel]
+breed [surveyors surveyor]
+
+
+;initialize model
+to initialize
+no-display ;turns off display until display is called (so user does not see updates)
+
+  ;random-seed 13 ;creates a repeatable series of random simulations
+  ca ct cp ;clears all variables (clear all, clear turtles, clear patches)
+  reset-ticks  ;resets counter
+  set-world-size ;call to custom functionthat sets patch size, world size, etc
+  set color-list [15 25 35 45 55 65 75 85 115 125 135] ;creates a list of colors for adaptive clusters
+  set color-list2 color-list ;save a copy of color-list in color-list2
+  set adapt? FALSE ;variable for determining when to end adaptive clusters
+  set output-file-mussels (word "Results/" file-name ".csv" )
+
+  ;initialized the habitat patches
+  ask patches [
+    set pcolor 103
+    set transect? FALSE
+    set cluster? FALSE
+    set cluster-ID -999
+    set cluster-ring -999
+    set ellipse? FALSE
+    set major-axis random max-pxcor / 4
+    set minor-axis random max-pycor / 4
+    set heading-ellipse util-random-range 255 300
+  ]
+
+  set mussel-group-sizes []
+
+  add-mussels ;call to custom function that creates the mussels
+  mussel-attributes ;call to custom function that adds mussel attributes (i.e. size, shape, color in ui, detectability)
+
+  ;parameterizes model based on sampling scheme
+  if sampling-method = "simple-random-sample" [set-srs]
+  if sampling-method = "transect" [set-transects]
+  if sampling-method = "adaptive-cluster" [create-clusters]
+  if sampling-method = "timed-search" [add-surveyors]
+
+display ;turn on display
+end
+
+
+;function that determines patch size, max x and y values
+to set-world-size
+
+  ifelse quadrat-size = 0.25
+  [set maxX 199 set maxY 39
+    set newPatchSize 5
+    set musselSize 0.6]
+
+  [ifelse quadrat-size = 0.5
+    [set maxX 99 set maxY 19
+      set newPatchSize 10
+      set musselSize 0.30]
+
+    [set maxX 49 set maxY 9
+      set newPatchSize 20
+      set musselSize 0.15]
+  ]
+
+resize-world 0 maxX 0 maxY
+set-patch-size newPatchSize
+
+end
+
+
+;procedure to create and place mussels
+to add-mussels
+
+  if mussels-per-meter = 0 [stop]
+
+  set #-of-mussels 500 * mussels-per-meter
+
+  ;randomly distribute mussels
+  if spatial-distribution = "random" [
+  create-mussels #-of-mussels [
+     setxy random-xcor random-ycor
+    ]
+  ]
+
+  ;clumped matern distribute mussels
+  if spatial-distribution = "Clumped-Matern" [
+
+    ;random matern clumps
+    ifelse matern-clump-placement = "Randomly placed" [
+      ask n-of num-groups patches [
+        set ellipse-set create-ellipse pxcor pycor major-axis minor-axis heading-ellipse
+        ask ellipse-set [set ellipse? TRUE set pcolor pcolor + 1]]
+    ]
+    ;creates clump that runs lenght of shore
+    [
+      ask patch (max-pxcor / 2) 2 [
+        set major-axis max-pxcor / 2
+        set minor-axis 3
+        set ellipse-set create-ellipse pxcor pycor major-axis minor-axis 270
+        ask ellipse-set [set ellipse? TRUE set pcolor pcolor + 1]]
+
+      ;creates circular clump in center
+      if matern-clump-placement = "One shore; one middle" or matern-clump-placement = "One shore; one middle; 2 additional" [
+        ask patch (max-pxcor / 2) (max-pycor / 2) [
+          set major-axis util-random-range 5 10
+          set minor-axis major-axis
+          set heading-ellipse util-random-range 255 300
+          set ellipse-set create-ellipse pxcor pycor major-axis minor-axis heading-ellipse
+          ask ellipse-set [set ellipse? TRUE set pcolor pcolor + 1]]]
+
+      ;creates 2 random matern clumps
+      if matern-clump-placement = "One shore; one middle; 2 additional" or matern-clump-placement = "One shore; 2 additional" [
+        ask n-of 2 patches with [ellipse? = FALSE][
+          set major-axis util-random-range (max-pxcor * 0.05) (max-pxcor * 0.10)
+          set minor-axis util-random-range (max-pycor * 0.05) (max-pycor * 0.10)
+          set heading-ellipse util-random-range 255 300
+          set ellipse-set create-ellipse pxcor pycor major-axis minor-axis heading-ellipse
+          ask ellipse-set [set ellipse? TRUE set pcolor pcolor + 1]]
+      ]
+    ]
+    create-mussels #-of-mussels [
+        move-to one-of patches with [ellipse? = TRUE]]
+  ]
+
+  if spatial-distribution = "Clumped-Poisson" [
+    set poisson-clump-sizes clump-size
+    let tmp6 0
+
+    ask n-of num-groups patches [
+      set parent-patch? TRUE
+      let mussel-clumps item tmp6 poisson-clump-sizes
+      set tmp6 tmp6 + 1
+
+      sprout-mussels mussel-clumps [
+        set parent-patch patch-here
+        set distance-from-parent-cell (random-poisson (poisson-mean-meters / quadrat-size))
+
+        ifelse any? patches in-radius distance-from-parent-cell
+        [move-to one-of patches in-radius distance-from-parent-cell]
+        [move-to one-of neighbors]
+
+        let xcor-tmp xcor + random-float 1
+        let ycor-tmp ycor + random-float 1
+
+        if xcor-tmp <= max-pxcor and ycor-tmp <= max-pycor [setxy xcor-tmp ycor-tmp]
+        set parent-patch tmp6 - 1
+
+      ]
+    ]
+  ]
+
+  ;count how many mussels are on each quadrat
+  ask patches [set mussels-on-patch count mussels-here]
+
+  ;caclulate and store variance to mean ratio
+  if mussels-per-meter > 0 [
+     set var-mean-ratio var-to-mean-ratio
+  ]
+
+end
+
+
+;function to add mussel aesthetics, rarity, detectability
+to mussel-attributes
+
+  ask mussels [
+    set size musselSize
+    set shape "circle"
+    set color white
+    set detectability random-float 1
+    set detected? False
+    set quarter find-quarter
+
+      let tmp random-float 1
+
+      (ifelse
+        tmp <= freq-rare [
+          set species "rare"
+          ;set color cyan
+          set detect-threshold detect-rare
+        ]
+        tmp > freq-rare and tmp <= freq-med-rare [
+          set species "med-rare"
+          ;set color violet
+          set detect-threshold detect-med-rare
+        ]
+        [
+          set species "common"
+          ;set color white
+          set detect-threshold detect-common
+        ]
+      )
+  ]
+
+end
+
+;reports the number of mussels in each clump (list with number per each clump
+to-report clump-size
+  let rounded-group-size []
+  while [sum rounded-group-size != #-of-mussels] [
+    set rounded-group-size []
+    set mussel-group-sizes []
+  ;generates list of random numbers between 0-1
+  repeat num-groups [
+    let tmp random-float 1 ;generate random number
+    set mussel-group-sizes lput tmp mussel-group-sizes ;add to mussel-group-sizes list
+  ]
+  let tmp sum mussel-group-sizes ;sum all random numbers in the list
+  ;create new list of where each value is random number/sum of random number list (will add up to one)
+  let tmp4 map [x -> x / tmp] mussel-group-sizes
+
+  ;multiply proportion from tmp4 by total number of mussels
+  let tmp5 map [ x -> x * #-of-mussels] tmp4
+
+  ;round so whole number of mussels
+  set rounded-group-size map round tmp5
+  ]
+
+  report rounded-group-size
+
+end
+
+
+;procedure to create ellipse for matern clusters
+to-report create-ellipse [x y a b head]
+
+  set ellipse-center? TRUE
+
+  let c 0
+
+  ifelse a >= b [
+    set c sqrt ( ( (a) ^ 2 ) - ( (b) ^ 2 ) )]
+  [set c sqrt ( ( (b) ^ 2 ) - ( (a) ^ 2 ) )]
+
+  let f1x ( x + ( c * sin head ) )
+  let f1y ( y + ( c * cos head ) )
+  let f2x ( x - ( c * sin head ) )
+  let f2y ( y - ( c * cos head ) )
+
+  report patches with [
+    ( distancexy f1x f1y ) +
+    ( distancexy f2x f2y ) <=
+    2 * ( sqrt ( ( b ^ 2 ) + ( c ^ 2 ) ) ) ]
+end
+
+to-report find-quarter
+  let q 0
+
+  (ifelse
+    xcor < (max-pxcor + 1) * 0.25 [set q 1]
+    xcor > (max-pxcor + 1) * 0.25 and xcor <= (max-pxcor + 1) * 0.5 [set q 2]
+    xcor > (max-pxcor + 1) * 0.5 and xcor <= (max-pxcor + 1) * 0.75 [set q 3]
+    xcor > (max-pxcor + 1) * 0.75 and xcor <= (max-pxcor + 1) [set q 4]
+    )
+
+   report q
+end
+
+
+;runs procedures after model is intialized
+to go
+  (ifelse
+    ;if adaptive clustering, build cluster until adapt? = FALSE
+    sampling-method = "adaptive-cluster"
+    [
+      ;procedure to determine when to stop adaptive clusters
+      while [adapt-cluster? = TRUE] [
+        build-cluster tick] ;procedure to build clusters
+      stop
+    ]
+    ;if random walk, stop after time limit is reached
+    sampling-method = "timed-search"
+    [
+      while [(timed-search-minute-counter / 60) <= person-hours-to-search] [
+        timed-search tick] ;procedure to random walk
+      stop
+    ]
+    ;else for transects and simple random sampling exit the go loop
+    [stop]
+  )
+end
+
+
+;procedure to create simple random sample
+to set-srs
+
+  ask n-of quadrats-to-sample patches [
+    set pcolor pink
+    set quadrat? TRUE
+  ]
+
+  ask mussels-on patches with [quadrat? = TRUE][set detected? detect]
+  ask mussels with [detected? = TRUE] [set color red set pcolor green]
+
+end
+
+
+;procedure that initializes transects
+to set-transects
+  let tmp 0
+  let tmp1 1
+
+  while [tmp <= max-pxcor] [
+    ask patches with [pxcor = tmp] [
+      set pcolor grey - 2
+      set transect? TRUE
+      set transect-ID tmp1]
+    set tmp tmp + transect-spacing + 1
+    set tmp1 tmp1 + 1
+  ]
+
+  set transects patches with [transect-ID > 0]
+  set number-of-transects max [transect-ID] of patches with [transect? = TRUE]
+
+ let tmp2 1
+  while [tmp2 <= number-of-transects] [
+    ask n-of quadrats-on-transect patches with [transect-id = tmp2 ] [
+      set quadrat? TRUE set pcolor pink]
+    set tmp2 tmp2 + 1
+  ]
+
+  ask mussels-on patches with [quadrat? = TRUE][set detected? detect]
+  ask mussels with [detected? = TRUE] [set color red set pcolor green]
+
+end
+
+
+;procedure to create initial clusers
+to create-clusters
+  let tmp1 1
+
+  ask n-of num-initial-clusters patches [
+    set pcolor pop-color
+    set cluster? TRUE
+    set cluster-ID tmp1
+    set tmp1 tmp1 + 1
+    set cluster-ring 0
+    set quadrat? TRUE
+  ]
+
+ask mussels-on patches with [quadrat? = TRUE][set detected? detect]
+ask mussels with [detected? = TRUE] [set color red]
+
+set total-clusters count patches with [cluster?]
+
+end
+
+
+;procedure that determines when to stop adaptive clusters
+to-report adapt-cluster?
+
+  set adapt? FALSE
+
+  if any? patches with [(cluster?) and (any? mussels-here with [detected? = true]) and (any? neighbors4 with [cluster? = FALSE])] [
+    set adapt? TRUE
+  ]
+
+  if total-clusters >= max-clusters [set adapt? FALSE]
+
+  report adapt?
+
+end
+
+
+;procedure to expand clusers
+to build-cluster
+
+  if adapt-cluster? = TRUE [
+    ask patches [
+         if any? mussels-here with [detected? = TRUE] and any? neighbors4 with [cluster? = FALSE] [
+          ask neighbors4 with [cluster? = FALSE] [
+            if total-clusters < max-clusters [
+              set cluster? TRUE
+              set quadrat? TRUE
+              ask mussels-here [set detected? detect]
+              ask mussels with [detected? = TRUE] [set color red]
+              set pcolor [pcolor] of myself + 0.3
+              set cluster-ID [cluster-ID] of myself
+              set cluster-ring ( [cluster-ring] of myself + 1 )
+              set total-clusters count patches with [cluster?]
+              if not any? mussels-here with [detected? = TRUE] [set cluster-edge? TRUE]
+            ]
+          ]
+        ]
+  ]]
+
+end
+
+;calculate Hansen-Herwitz estimators
+to calc-hh-estimates
+
+  let network-avg-list []
+  let tmp 1
+
+  let L 50 ;length in m
+  let W 10 ;width in m
+  let num-cells (L * W) / (quadrat-size ^ 2) ;number of grid cells or patches in model
+
+  while [tmp <= num-initial-clusters][
+    let mussels-per-network count (mussels with [cluster-ID = tmp and detected? = TRUE])
+    let network-size count (patches with [cluster-ID = tmp and cluster-edge? = 0])
+    set tmp tmp + 1
+    let network-avg mussels-per-network / network-size
+    set network-avg-list lput network-avg network-avg-list
+  ]
+
+  set hh-estimated-density-m (1 / num-initial-clusters * (sum network-avg-list)) / (quadrat-size ^ 2)
+  set hh-estimated-total-pop hh-estimated-density-m * (num-cells * (quadrat-size ^ 2))
+
+  set hh-estimated-density-var (1 / (num-initial-clusters * (num-initial-clusters - 1)) *
+    (sum (map [x -> (x - hh-estimated-density-m) ^ 2] network-avg-list))) / (quadrat-size ^ 2) ^ 2
+
+  set hh-estimated-pop-var ((num-cells * (quadrat-size ^ 2)) ^ 2) * hh-estimated-density-var
+
+end
+
+
+;procedure to determine colors of clusters
+to-report pop-color
+  if empty? color-list [set color-list color-list2]
+  let $color first color-list
+  set color-list but-first color-list
+report $color
+end
+
+
+;function to add surveyors
+to add-surveyors
+
+  let xcord min-pxcor
+
+  let ycord-list []
+  let new-ycord 0
+
+  foreach [1 2 3] [
+    set new-ycord ((max-pycor ) / 4) + new-ycord
+    set ycord-list lput new-ycord ycord-list
+  ]
+
+  foreach ycord-list [
+    x ->
+    create-surveyors 1 [
+      setxy xcord x
+      set size 4
+      set color yellow
+      set quadrats-searched 0
+      set mussels-found 0
+      set tick-since-last-find 999
+      set search-mode one-of [ true false ]
+      set counter 0
+      set destination max-pxcor
+      set reached-destination-once? False
+      set reached-destination? False
+      facexy max-pxcor ycor
+      pen-down
+    ]
+  ]
+
+end
+
+
+;procedure to move surveyors
+to timed-search
+
+  ;determine if search mode is T or F
+  ask surveyors[
+    ifelse variable-search-mode = True [
+      ( ifelse
+        tick-since-last-find <= 20 [
+          set search-mode True]
+        ticks mod 10 = 0 [
+          set search-mode search-mode = False]
+        [])
+    ]
+    [set search-mode True]
+  ]
+
+  ;check if surveyors reached destination
+  ask surveyors [
+    if pxcor = destination [
+      set reached-destination-once? true
+      set reached-destination? True
+    ]
+  ]
+
+  ;check if surveyors are out of time
+  ask surveyors [
+
+    set out-of-time? False
+
+    set quarter find-quarter
+
+    if reached-destination-once? = False [
+          if (quarter = 1 and (timed-search-minute-counter / 60) > (person-hours-to-search * 0.25)) or
+    (quarter = 2 and (timed-search-minute-counter / 60) > (person-hours-to-search * 0.5)) or
+    (quarter = 3 and (timed-search-minute-counter / 60) > (person-hours-to-search * 0.75)) or
+    (quarter = 4 and (timed-search-minute-counter / 60) > (person-hours-to-search))
+    [
+      set out-of-time? True
+      set search-mode False
+    ]
+    ]
+  ]
+
+
+  ;check if surveyors are at edge or corner
+  ask surveyors [
+
+    ;at an edge?
+    set at-vertical-edge?
+    ([pxcor] of patch-ahead 0 >= max-pxcor and heading > 0 and heading < 180) or
+    ([pxcor] of patch-ahead 0 <= min-pxcor and heading > 180)
+
+    set at-horizontal-edge?
+    ([pycor] of patch-ahead 0 >= max-pycor and (heading > 270 or heading < 90)) or
+    ([pycor] of patch-ahead 0 <= min-pycor and heading > 90 and heading < 270)
+
+    ;at a corner?
+    set cornered?
+    (pxcor = min-pxcor and pycor = max-pycor) or
+    (pxcor = max-pxcor and pycor = max-pycor) or
+    (pxcor = min-pxcor and pycor = min-pycor) or
+    (pxcor = max-pxcor and pycor = min-pycor)
+  ]
+
+  ;procedure to determine which direction surveyors move
+  ask surveyors[
+
+    (ifelse
+      ;if at corner spin until you get out
+      cornered?[
+        right (random 360)
+      ]
+       ;if at edge of world turn around
+      at-vertical-edge? [
+        if reached-destination? [
+          set reached-destination? False
+          ifelse destination = max-pxcor [set destination 0] [set destination max-pxcor]
+        ]
+        set heading (- heading)
+      ]
+      at-horizontal-edge? [
+        set heading (180 - heading)
+      ]
+      ;if out of time to search section, head towards next section
+      out-of-time? [
+        facexy destination ycor
+        right util-random-range -10 10
+      ]
+      ;avoid other surveyors
+      any? other surveyors in-cone (meters-to-quadrats 2) 90 [
+          right one-of (list 90 -90)
+      ]
+      ;if recently found mussel turn more sharply
+       tick-since-last-find <= 20 [
+        right util-random-range -90 90
+      ]
+      ;if a patch where something was recently found is near
+      any? other surveyors with [tick-since-last-find <= 20] and any? mussels with [(ticks - tick-detected) <= 20] in-radius meters-to-quadrats 5 [ ;WORKSHOP THIS NUMBER
+        right util-random-range -90 90
+        set search-mode True
+      ]
+      ;if other surveyors found something and you have not, face towards closest patch where something was recently found
+      any? mussels with [detected? = TRUE and ((ticks - tick-detected) <= 20) and (quarter = [quarter] of myself)] [
+        let closest min-one-of (mussels with [(ticks - tick-detected) <= 20 and quarter = [quarter] of myself]) [distance myself];
+        face closest ;if two others found something, face closest
+        right util-random-range -10 10]
+      ;or else face more or less forward
+      [
+        facexy destination ycor
+        right util-random-range (0 - 45) 45
+      ]
+      )
+  ]
+
+  ;Surveyors step forward
+  ask surveyors [fd 1]
+
+  ;patch with surveyors on it becomes quadrat
+  ask surveyors [
+    ifelse search-mode = True [
+      set quadrats-searched quadrats-searched + 1
+      ask patch-here [set quadrat? TRUE]
+      ask mussels-here with [detected? = FALSE] [
+        set detected? detect
+        if detected? = TRUE [
+          set detected-id (word myself  "-" ticks)
+          set tick-detected ticks
+          set color red
+        ]
+        if detected? = FALSE [set detectability random-float 1]
+      ]
+      set timed-search-minute-counter timed-search-minute-counter + ((quadrat-size ^ 2) * 2)
+    ]
+    [
+      set timed-search-minute-counter timed-search-minute-counter + ((quadrat-size ^ 2) * 0.05)
+    ]
+  ]
+
+  ;surveyor updates time since last tick and patch color
+  ask surveyors [
+    (ifelse
+      any? mussels-here with [detected? = TRUE and detected-id = (word myself  "-" ticks) ]
+      [
+        set tick-since-last-find 0
+        set mussels-found mussels-found + count mussels-here with [detected? = TRUE and detected-id = (word myself  "-" ticks)]
+        set pcolor green
+      ]
+      search-mode = True
+      [set tick-since-last-find tick-since-last-find + 1
+      if pcolor != green [set pcolor pink]]
+      ;else
+      [set tick-since-last-find tick-since-last-find + 1]
+      )
+  ]
+
+end
+
+
+;function to calculate metrics after the model runs
+to calculate-metrics
+
+  set total-rare-mussels count (mussels with [species = "rare"])
+  set total-common-mussels count(mussels with [species = "common"])
+  set total-med-rare-mussels count (mussels with [species = "med-rare"])
+
+  set total-mussels-sampled count mussels-on patches with [quadrat? = TRUE]
+  set rare-mussels-sampled count (mussels with [quadrat? = TRUE and species = "rare"])
+  set common-mussels-sampled count(mussels with [quadrat? = TRUE and species = "common"])
+  set med-rare-mussels-sampled count (mussels with [quadrat? = TRUE and species = "med-rare"])
+
+  set total-num-quadrats count patches with [quadrat? = TRUE]
+  set total-quadrats-surveyed sum [quadrats-searched] of surveyors
+
+  set total-mussels-detected count mussels with [detected? = TRUE]
+  set rare-mussels-detected count (mussels with [quadrat? = TRUE and species = "rare" and detected? = TRUE])
+  set common-mussels-detected count(mussels with [quadrat? = TRUE and species = "common" and detected? = TRUE])
+  set med-rare-mussels-detected count (mussels with [quadrat? = TRUE and species = "med-rare" and detected? = TRUE])
+
+  ;create empty list to hold surveyor counts of mussels detected
+  set mussels-per-surveyor-list [0 0 0]
+
+  ;if method is transect, calculate estimated density
+  if sampling-method = "transect" or sampling-method = "simple-random-sample"[
+      ;estimated mussel density is the number of mussels found/quadrats samples
+      set estimated-mussel-density total-mussels-detected / quadrats-to-meters-sq total-num-quadrats
+      set sample-cv cv
+
+    output-print (word "estimated density (m^2): " estimated-mussel-density)
+    output-print (word "coefficient of variation: " sample-cv)
+    output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
+    output-print (word "total mussels found: " total-mussels-detected)
+  ]
+
+  ifelse sampling-method = "timed-search"
+  [
+    ;timed search minute counter divided by 60
+    set person-hours timed-search-minute-counter / 60
+  ]
+  [
+    ;number of square meters searched x 2 minutes divided by 60
+    set person-hours ((quadrats-to-meters-sq total-num-quadrats) * 2) / 60
+  ]
+
+  ;if method is random walk, calculate mussels per person hour
+  if sampling-method = "timed-search" [
+
+    ;create empty list to hold surveyor counts of mussels detected
+    set mussels-per-surveyor-list []
+
+    ;ask surveyors to add mussels found to list
+    ask surveyors [
+      set mussels-per-surveyor-list fput mussels-found mussels-per-surveyor-list
+    ]
+
+    ;mussels per person hour is the number of mussels per each hour searching per each surveyor
+    set mussels-per-person-hour total-mussels-detected / (timed-search-minute-counter / 60)
+    set sample-cv "NA"
+    output-print (word "total person-hours: " (timed-search-minute-counter / 60))
+    output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
+    output-print (word "total mussels found: " total-mussels-detected)
+    output-print (word "mussels per person hour: " mussels-per-person-hour)
+  ]
+
+  ;if the method is adapt, calculate hh metrics
+  if sampling-method = "adaptive-cluster" [
+    calc-hh-estimates
+    set sample-cv cv
+
+   output-print word "estimated density (HH): " hh-estimated-density-m
+   output-print word "estimated pop: " hh-estimated-total-pop
+   output-print word "estimated density var: " hh-estimated-density-var
+   output-print word "estimated pop var: " hh-estimated-pop-var
+   output-print (word "coefficient of variation: " sample-cv)
+   output-print (word "sq meters searched: " (total-num-quadrats * (quadrat-size ^ 2)) )
+   output-print (word "mussels found: " total-mussels-detected)
+  ]
+
+end
+
+
+;function to create csv file and write column headings (will save over file if one exist with same name)
+to initialize-file
+
+  set output-file-mussels (word "Results/" file-name ".csv" )
+
+  if(file-exists? output-file-mussels) [
+    carefully
+    [
+      file-close
+      file-delete output-file-mussels]
+    [print error-message]
+  ]
+
+  if not file-exists? output-file-mussels [
+    file-open output-file-mussels
+
+  ;write column headings
+  file-type "Rep,"
+  file-type "Quadrat Edge Length,"
+  file-type "Sampling Method,"
+
+  file-type "True Mussel Density,"
+  file-type "Total Mussels,"
+  file-type "Total Rare Mussels,"
+  file-type "Total Medium Mussels,"
+  file-type "Total Common Mussels,"
+
+  file-type "Detectability of Rare Mussels,"
+  file-type "Detectability of Medium-Rare Mussels,"
+  file-type "Detectability of Common Mussels,"
+
+  file-type "Spatial Distribution,"
+  file-type "Number of clumps,"
+  file-type "Poisson mean,"
+  file-type "Matern Clump Placement,"
+  file-type "Variance to Mean Ratio,"
+
+  file-type "SRS Num Quadrats,"
+
+  file-type "Number Transects,"
+  file-type "Number Quadrats Per Transect,"
+
+  file-type "ACS Num Quadrats,"
+  file-type "ACS Max Clusters,"
+
+  file-type "Timed Search variable Search mode,"
+  file-type "Timed Search max PH,"
+  file-type "Timed Search detect reduction,"
+
+  file-type "Total Quadrats Sampled,"
+
+  file-type "Total Mussels in Quadrats,"
+  file-type "Rare Mussels in Quadrats,"
+  file-type "Medium Rare Mussels in Quadrats,"
+  file-type "Common Mussels in Quadrats,"
+
+  file-type "Total Mussels Detected,"
+  file-type "Rare Mussels Detected,"
+  file-type "Medium Mussels Detected,"
+  file-type "Common Mussels Detected,"
+
+  file-type "Person Hours Searched,"
+  file-type "Sum of Quadrats per Surveyor,"
+
+  file-type "Mussels detected by Surveyor 1,"
+  file-type "Mussels detected by Surveyor 2,"
+  file-type "Mussels detected by Surveyor 3,"
+
+
+  file-type "Estimated Density,"
+  file-type "Sample CV,"
+  file-type "Mussels Per Person Hour,"
+  file-type "HH metric,"
+  file-print "HH Variance," ;last line must be file-print
+
+ file-close ;close file
+  ]
+
+end
+
+
+;function to save metrics into output file
+to save-results
+
+  calculate-metrics
+
+  if not file-exists? output-file-mussels [initialize-file]
+
+  file-open output-file-mussels
+
+  file-type (word behaviorspace-run-number ",")
+  file-type (word quadrat-size ",")
+  file-type (word sampling-method ",")
+
+  file-type (word mussels-per-meter ",")
+  file-type (word #-of-mussels ",")
+  file-type (word total-rare-mussels ",")
+  file-type (word total-med-rare-mussels ",")
+  file-type (word total-common-mussels ",")
+
+  file-type (word detect-rare ",")
+  file-type (word detect-med-rare ",")
+  file-type (word detect-common ",")
+
+  file-type (word spatial-distribution ",")
+  file-type (word num-groups ",")
+  file-type (word poisson-mean-meters ",")
+  file-type (word matern-clump-placement ",")
+  file-type (word var-mean-ratio ",")
+
+  file-type (word quadrats-to-sample ",")
+
+  file-type (word number-of-transects ",")
+  file-type (word quadrats-on-transect ",")
+
+  file-type (word num-initial-clusters ",")
+  file-type (word max-clusters ",")
+
+  file-type (word variable-search-mode ",")
+  file-type (word person-hours-to-search ",")
+  file-type (word detect-reduction ",")
+
+  file-type (word total-num-quadrats ",")
+
+  file-type (word total-mussels-sampled ",")
+  file-type (word rare-mussels-sampled ",")
+  file-type (word med-rare-mussels-sampled ",")
+  file-type (word common-mussels-sampled ",")
+
+  file-type (word total-mussels-detected ",")
+  file-type (word rare-mussels-detected ",")
+  file-type (word med-rare-mussels-detected ",")
+  file-type (word common-mussels-detected ",")
+
+  file-type (word person-hours ",")
+  file-type (word total-quadrats-surveyed ",")
+
+  file-type (word item 0 mussels-per-surveyor-list ",")
+  file-type (word item 1 mussels-per-surveyor-list ",")
+  file-type (word item 2 mussels-per-surveyor-list ",")
+
+  file-type (word estimated-mussel-density ",")
+  file-type (word sample-cv ",")
+  file-type (word mussels-per-person-hour ",")
+  file-type (word hh-estimated-density-m ",")
+  file-print (word hh-estimated-density-var ",")
+
+file-close     ;close file
+
+end
+
+
+;reports if mussel is detected or not (T/F)
+to-report detect
+  (ifelse
+    sampling-method != "timed-search" [
+      ifelse detectability <= detect-threshold [report TRUE][report FALSE]
+    ]
+    [
+      ifelse detectability <= detect-threshold - detect-reduction [report TRUE][report FALSE]
+    ]
+  )
+end
+
+
+;reports the variance to mean ratio --sensitive to patch size
+to-report var-to-mean-ratio
+  let n count patches
+  let mean-mussels-on-patches mean [mussels-on-patch] of patches
+  let patch-mussel-var ( sum [((mussels-on-patch - mean-mussels-on-patches) ^ 2)] of patches ) / n
+  report (patch-mussel-var / mean-mussels-on-patches)
+end
+
+to-report cv
+  let quadrats patches with [quadrat? = TRUE]
+
+  let mussels-per-quadrat-list []
+
+  ask quadrats [
+    let mussels-on-self mussels-on self
+    let detected-mussels-on-patch count mussels-on-self with [detected? = TRUE]
+    set mussels-per-quadrat-list fput detected-mussels-on-patch mussels-per-quadrat-list
+  ]
+
+  let mean-count mean mussels-per-quadrat-list
+
+  let std-dev standard-deviation mussels-per-quadrat-list
+
+  let coef-var "NA"
+
+  if mean-count != 0
+    [set coef-var std-dev / mean-count]
+
+  report coef-var
+
+end
+
+
+;converts linear distance in meters to distance in patch size
+to-report meters-to-quadrats [x-distance]
+  report x-distance / quadrat-size
+end
+
+
+;converts number of quadrats to square meters
+to-report quadrats-to-meters-sq [x-quadrats]
+  report x-quadrats * (quadrat-size ^ 2)
+end
+
+
+;generates random integer between two values
+to-report util-random-range [min-extreme max-extreme]
+report random (max-extreme - min-extreme + 1) + min-extreme
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 26
@@ -80,7 +1090,7 @@ CHOOSER
 sampling-method
 sampling-method
 "simple-random-sample" "transect" "adaptive-cluster" "timed-search"
-1
+3
 
 INPUTBOX
 931
@@ -898,6 +1908,88 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="timed_search_varying_detectability" repetitions="500" runMetricsEveryStep="false">
+    <preExperiment>set file-name "timed_search_varying_detectability"
+initialize-file</preExperiment>
+    <setup>initialize</setup>
+    <go>go</go>
+    <postRun>save-results</postRun>
+    <enumeratedValueSet variable="quadrat-size">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sampling-method">
+      <value value="&quot;timed-search&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="person-hours-to-search">
+      <value value="4.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="variable-search-mode">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="detect-reduction">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mussels-per-meter">
+      <value value="0.1"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spatial-distribution">
+      <value value="&quot;random&quot;"/>
+      <value value="&quot;Clumped-Poisson&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num groups">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="poisson-mean-meters">
+      <value value="6"/>
+    </enumeratedValueSet>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="1"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="1"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="1"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.75"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.5"/>
+      </enumeratedValueSet>
+    </subExperiment>
+    <subExperiment>
+      <enumeratedValueSet variable="detect-rare">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-med-rare">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+      <enumeratedValueSet variable="detect-common">
+        <value value="0.25"/>
+      </enumeratedValueSet>
+    </subExperiment>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
