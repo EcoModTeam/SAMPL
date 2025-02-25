@@ -32,6 +32,8 @@ globals [
   timed-search-minute-counter ;keeps track or random walk time
   person-hours ;number of person hours (calc depends on search method)
   mussels-per-surveyor-list ;a list holding total mussels detected by each surveyor
+  mean-prob-sampled ;the mean cumulative probability of detection for each mussel that was sampled at least once. timed search only.
+  mean-times-sampled ;the mean number of times each mussel that was sampled was sampled. Timed search only.
   total-num-quadrats ;the number of cells/patches where quadrat = TRUE
   total-quadrats-surveyed ;the sum of the number of quadrats searched by each surveyor
   estimated-mussel-density ;number of mussels detected/number of square meters sampled
@@ -76,6 +78,8 @@ turtles-own [
   detected-id ;the surveyor and detected step so we know when and by who mussel was detected
   distance-from-parent-cell ;The distance from the patch that is the center of poisson clump
   parent-patch ;identifies which patch is the parent patch (center of poisson distribution. Used to determine how far away
+  times-sampled ;the number of times the individual mussel has been sampled (timed searches only)
+  probability-detection ;the cumulative probability that the mussel will be detected (timed searches only)
 
   ;SURVEYOR ATTRIBUTES
   quarter ;what quarter of the model space the agent is in. from left to right quarters are 1,2,3,4
@@ -266,6 +270,8 @@ to mussel-attributes
     set detectability random-float 1
     set detected? False
     set quarter find-quarter
+    set times-sampled 0
+    set probability-detection 0
 
       let tmp random-float 1
 
@@ -677,6 +683,8 @@ to timed-search
     ifelse search-mode = True [
       set quadrats-searched quadrats-searched + 1
       ask patch-here [set quadrat? TRUE]
+      ask mussels-here [set times-sampled times-sampled + 1]
+      ask mussels-here [set probability-detection 1 - (1 - detect-threshold) ^ times-sampled]
       ask mussels-here with [detected? = FALSE] [
         set detected? detect
         if detected? = TRUE [
@@ -769,6 +777,17 @@ to calculate-metrics
       set mussels-per-surveyor-list fput mussels-found mussels-per-surveyor-list
     ]
 
+    ;create list to hold probabilities of detection
+    let probability-detection-list []
+    let times-sampled-list []
+    ask mussels with [times-sampled > 0] [
+      set probability-detection-list fput probability-detection probability-detection-list
+      set times-sampled-list fput times-sampled times-sampled-list
+    ]
+    ;create mean probability if sampled and mean times sampled if sampled
+    set mean-prob-sampled mean probability-detection-list
+    set mean-times-sampled mean times-sampled-list
+
     ;mussels per person hour is the number of mussels per each hour searching per each surveyor
     set mussels-per-person-hour total-mussels-detected / (timed-search-minute-counter / 60)
     set sample-cv "NA"
@@ -858,11 +877,12 @@ to initialize-file
 
   file-type "Person Hours Searched,"
   file-type "Sum of Quadrats per Surveyor,"
+  file-type "Mean Probability of Detection for Sampled Mussels,"
+  file-type "Mean Times Sampled Mussel is Sampled,"
 
   file-type "Mussels detected by Surveyor 1,"
   file-type "Mussels detected by Surveyor 2,"
   file-type "Mussels detected by Surveyor 3,"
-
 
   file-type "Estimated Density,"
   file-type "Sample CV,"
@@ -931,6 +951,8 @@ to save-results
 
   file-type (word person-hours ",")
   file-type (word total-quadrats-surveyed ",")
+  file-type (word mean-prob-sampled ",")
+  file-type (word mean-times-sampled ",")
 
   file-type (word item 0 mussels-per-surveyor-list ",")
   file-type (word item 1 mussels-per-surveyor-list ",")
@@ -1234,7 +1256,7 @@ CHOOSER
 spatial-distribution
 spatial-distribution
 "random" "Clumped-Poisson" "Clumped-Matern"
-2
+1
 
 INPUTBOX
 246
@@ -1242,7 +1264,7 @@ INPUTBOX
 324
 174
 num-groups
-3.0
+5.0
 1
 0
 Number
@@ -1253,7 +1275,7 @@ INPUTBOX
 357
 254
 poisson-mean-meters
-6.0
+3.0
 1
 0
 Number
@@ -1362,7 +1384,7 @@ INPUTBOX
 894
 250
 person-hours-to-search
-10.0
+4.5
 1
 0
 Number
@@ -1373,7 +1395,7 @@ INPUTBOX
 652
 98
 detect-rare
-1.0
+0.25
 1
 0
 Number
@@ -1384,7 +1406,7 @@ INPUTBOX
 651
 167
 detect-med-rare
-1.0
+0.25
 1
 0
 Number
@@ -1395,7 +1417,7 @@ INPUTBOX
 651
 237
 detect-common
-1.0
+0.25
 1
 0
 Number
@@ -1915,6 +1937,9 @@ initialize-file</preExperiment>
     <setup>initialize</setup>
     <go>go</go>
     <postRun>save-results</postRun>
+    <enumeratedValueSet variable="file-name">
+      <value value="&quot;timed_search_varying_detectability&quot;"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="quadrat-size">
       <value value="0.5"/>
     </enumeratedValueSet>
@@ -1938,7 +1963,7 @@ initialize-file</preExperiment>
       <value value="&quot;random&quot;"/>
       <value value="&quot;Clumped-Poisson&quot;"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="num groups">
+    <enumeratedValueSet variable="num-groups">
       <value value="5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="poisson-mean-meters">
