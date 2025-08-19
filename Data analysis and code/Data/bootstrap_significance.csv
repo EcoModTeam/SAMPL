@@ -1,0 +1,259 @@
+﻿density,response,order,variable,type,group,value
+0.1,Percent error,1,Intercept,Intercept,CI,-125.547
+0.1,Percent error,2,Search effort,Search effort,CI,0.171
+0.1,Percent error,3,ACS,Sampling method,CI,-19.617
+0.1,Percent error,4,TRS,Sampling method,CI,-12.281
+0.1,Percent error,5,CM 1S,Spatial distribution,CI,-14.948
+0.1,Percent error,6,CM 1S+1M,Spatial distribution,CI,-15.222
+0.1,Percent error,7,CM 1S+1M+2,Spatial distribution,CI,-15.382
+0.1,Percent error,8,CM 1S+2,Spatial distribution,CI,-12.209
+0.1,Percent error,9,CM Ran,Spatial distribution,CI,-4.497
+0.1,Percent error,10,Poisson,Spatial distribution,CI,-9.881
+0.1,Percent error,11,ACS x CM 1S,Interaction,CI,-7.164
+0.1,Percent error,12,TRS x CM 1S,Interaction,CI,-2.805
+0.1,Percent error,13,ACS x CM 1S+1M,Interaction,CI,-5.349
+0.1,Percent error,14,TRS x CM 1S+1M,Interaction,CI,-4.989
+0.1,Percent error,15,ACS x CM 1S+1M +2,Interaction,CI,-3.376
+0.1,Percent error,16,TRS x CM 1S+1M +2,Interaction,CI,-5.758
+0.1,Percent error,17,ACS x CM 1S+2,Interaction,CI,-7.733
+0.1,Percent error,18,TRS x CM 1S+2,Interaction,CI,-8.61
+0.1,Percent error,19,ACS x CM Ran,Interaction,CI,-15.265
+0.1,Percent error,20,TRS x CM Ran,Interaction,CI,-17.215
+0.1,Percent error,21,ACS x Poisson,Interaction,CI,-6.966
+0.1,Percent error,22,TRS x Poisson,Interaction,CI,-10.714
+7,Percent error,1,Intercept,Intercept,CI,3.126
+7,Percent error,2,TRS,Sampling method,CI,-1.13
+7,Percent error,3,CM 1S,Spatial distribution,CI,4.741
+7,Percent error,4,CM 1S+1M,Spatial distribution,CI,3.989
+7,Percent error,5,CM 1S+1M+2,Spatial distribution,CI,2.683
+7,Percent error,6,CM 1S+2,Spatial distribution,CI,6.106
+7,Percent error,7,CM Ran,Spatial distribution,CI,11.656
+7,Percent error,8,Poisson,Spatial distribution,CI,6.655
+7,Percent error,9,TRS x CM 1S,Interaction,CI,-2.583
+7,Percent error,10,TRS x CM 1S+1M,Interaction,CI,-2.905
+7,Percent error,11,TRS x CM 1S+1M +2,Interaction,CI,-3.767
+7,Percent error,12,TRS x 1S+2,Interaction,CI,-5.203
+7,Percent error,13,TRS x CM Ran,Interaction,CI,-7.452
+7,Percent error,14,TRS x Poisson,Interaction,CI,-5.774
+0.1,CV,1,Intercept,Intercept,CI,37.128
+0.1,CV,2,Search effort,Search effort,CI,-0.178
+0.1,CV,3,ACS,Sampling method,CI,1.263
+0.1,CV,4,TRS,Sampling method,CI,-1.105
+0.1,CV,5,CM 1S,Spatial distribution,CI,-0.667
+0.1,CV,6,CM 1S+1M,Spatial distribution,CI,-0.994
+0.1,CV,7,CM 1S+1M+2,Spatial distribution,CI,-1.196
+0.1,CV,8,CM 1S+2,Spatial distribution,CI,-0.985
+0.1,CV,9,CM Ran,Spatial distribution,CI,0.095
+0.1,CV,10,Poisson,Spatial distribution,CI,-0.836
+0.1,CV,11,ACS x CM 1S,Interaction,CI,-1.05
+0.1,CV,12,TRS x CM 1S,Interaction,CI,-0.626
+0.1,CV,13,ACS x CM 1S+1M,Interaction,CI,-0.592
+0.1,CV,14,TRS x CM 1S+1M,Interaction,CI,-0.336
+0.1,CV,15,ACS x CM 1S+1M +2,Interaction,CI,-0.207
+0.1,CV,16,TRS x CM 1S+1M +2,Interaction,CI,0.065
+0.1,CV,17,ACS x 1S+2,Interaction,CI,-0.625
+0.1,CV,18,TRS x 1S+2,Interaction,CI,-0.37
+0.1,CV,19,ACS x CM Ran,Interaction,CI,-1.673
+0.1,CV,20,TRS x CM Ran,Interaction,CI,-1.019
+0.1,CV,21,ACS x Poisson,Interaction,CI,-0.599
+0.1,CV,22,TRS x Poisson,Interaction,CI,-0.051
+1,CV,1,Intercept,Intercept,CI,1.9993
+1,CV,2,TRS,Sampling method,CI,-0.07
+1,CV,3,CM 1S,Spatial distribution,CI,0.684
+1,CV,4,CM 1S+1M,Spatial distribution,CI,0.462
+1,CV,5,CM 1S+1M+2,Spatial distribution,CI,0.374
+1,CV,6,CM 1S+2,Spatial distribution,CI,0.604
+1,CV,7,CM Ran,Spatial distribution,CI,1.663
+1,CV,8,Poisson,Spatial distribution,CI,0.961
+1,CV,9,TRS x CM 1S,Interaction,CI,-0.1
+1,CV,10,TRS x CM 1S+1M,Interaction,CI,-0.05
+1,CV,11,TRS x CM 1S+1M +2,Interaction,CI,-0.036
+1,CV,12,TRS x CM 1S+2,Interaction,CI,-0.126
+1,CV,13,TRS x CM Ran,Interaction,CI,-0.444
+1,CV,14,TRS x Poisson,Interaction,CI,-0.157
+7,CV,1,Intercept,Intercept,CI,0.747
+7,CV,2,TRS,Sampling method,CI,-0.009
+7,CV,3,CM 1S,Spatial distribution,CI,1.297
+7,CV,4,CM 1S+1M,Spatial distribution,CI,0.462
+7,CV,5,CM 1S+1M+2,Spatial distribution,CI,0.866
+7,CV,6,CM 1S+2,Spatial distribution,CI,1.153
+7,CV,7,CM Ran,Spatial distribution,CI,2.382
+7,CV,8,Poisson,Spatial distribution,CI,1.51
+7,CV,9,TRS x CM 1S,Interaction,CI,-0.106
+7,CV,10,TRS x CM 1S+1M,Interaction,CI,-0.06
+7,CV,11,TRS x CM 1S+1M +2,Interaction,CI,-0.063
+7,CV,12,TRS x 1S+2,Interaction,CI,-0.079
+7,CV,13,TRS x CM Ran,Interaction,CI,-0.211
+7,CV,14,TRS x Poisson,Interaction,CI,-0.083
+0.1,Percent error,1,Intercept,Intercept,CI,6.902
+0.1,Percent error,2,Search effort,Search effort,CI,0.829
+0.1,Percent error,3,ACS,Sampling method,CI,-3.022
+0.1,Percent error,4,TRS,Sampling method,CI,2.974
+0.1,Percent error,5,CM 1S,Spatial distribution,CI,-0.52
+0.1,Percent error,6,CM 1S+1M,Spatial distribution,CI,-1.105
+0.1,Percent error,7,CM 1S+1M+2,Spatial distribution,CI,0.131
+0.1,Percent error,8,CM 1S+2,Spatial distribution,CI,3.864
+0.1,Percent error,9,CM Ran,Spatial distribution,CI,11.388
+0.1,Percent error,10,Poisson,Spatial distribution,CI,3.962
+0.1,Percent error,11,ACS x CM 1S,Interaction,CI,15.299
+0.1,Percent error,12,TRS x CM 1S,Interaction,CI,17.601
+0.1,Percent error,13,ACS x CM 1S+1M,Interaction,CI,15.769
+0.1,Percent error,14,TRS x CM 1S+1M,Interaction,CI,15.483
+0.1,Percent error,15,ACS x CM 1S+1M +2,Interaction,CI,18.566
+0.1,Percent error,16,TRS x CM 1S+1M +2,Interaction,CI,16.171
+0.1,Percent error,17,ACS x CM 1S+2,Interaction,CI,14.986
+0.1,Percent error,18,TRS x CM 1S+2,Interaction,CI,13.73
+0.1,Percent error,19,ACS x CM Ran,Interaction,CI,9.954
+0.1,Percent error,20,TRS x CM Ran,Interaction,CI,4.703
+0.1,Percent error,21,ACS x Poisson,Interaction,CI,14.663
+0.1,Percent error,22,TRS x Poisson,Interaction,CI,9.619
+7,Percent error,1,Intercept,Intercept,CI,4.188
+7,Percent error,2,TRS,Sampling method,CI,0.433
+7,Percent error,3,CM 1S,Spatial distribution,CI,7.764
+7,Percent error,4,CM 1S+1M,Spatial distribution,CI,6.873
+7,Percent error,5,CM 1S+1M+2,Spatial distribution,CI,5.264
+7,Percent error,6,CM 1S+2,Spatial distribution,CI,9.648
+7,Percent error,7,CM Ran,Spatial distribution,CI,17.685
+7,Percent error,8,Poisson,Spatial distribution,CI,10.6
+7,Percent error,9,TRS x CM 1S,Interaction,CI,1.602
+7,Percent error,10,TRS x CM 1S+1M,Interaction,CI,0.944
+7,Percent error,11,TRS x CM 1S+1M +2,Interaction,CI,-0.485
+7,Percent error,12,TRS x 1S+2,Interaction,CI,-0.673
+7,Percent error,13,TRS x CM Ran,Interaction,CI,0.277
+7,Percent error,14,TRS x Poisson,Interaction,CI,-0.9
+0.1,CV,1,Intercept,Intercept,CI,42.869
+0.1,CV,2,Search effort,Search effort,CI,-0.149
+0.1,CV,3,ACS,Sampling method,CI,2.439
+0.1,CV,4,TRS,Sampling method,CI,0.097
+0.1,CV,5,CM 1S,Spatial distribution,CI,0.709
+0.1,CV,6,CM 1S+1M,Spatial distribution,CI,0.238
+0.1,CV,7,CM 1S+1M+2,Spatial distribution,CI,-0.021
+0.1,CV,8,CM 1S+2,Spatial distribution,CI,0.306
+0.1,CV,9,CM Ran,Spatial distribution,CI,1.61
+0.1,CV,10,Poisson,Spatial distribution,CI,0.397
+0.1,CV,11,ACS x CM 1S,Interaction,CI,0.496
+0.1,CV,12,TRS x CM 1S,Interaction,CI,1.096
+0.1,CV,13,ACS x CM 1S+1M,Interaction,CI,0.791
+0.1,CV,14,TRS x CM 1S+1M,Interaction,CI,1.237
+0.1,CV,15,ACS x CM 1S+1M +2,Interaction,CI,1.114
+0.1,CV,16,TRS x CM 1S+1M +2,Interaction,CI,1.653
+0.1,CV,17,ACS x 1S+2,Interaction,CI,0.788
+0.1,CV,18,TRS x 1S+2,Interaction,CI,1.222
+0.1,CV,19,ACS x CM Ran,Interaction,CI,-0.012
+0.1,CV,20,TRS x CM Ran,Interaction,CI,0.839
+0.1,CV,21,ACS x Poisson,Interaction,CI,0.779
+0.1,CV,22,TRS x Poisson,Interaction,CI,1.556
+1,CV,1,Intercept,Intercept,CI,2.058
+1,CV,2,TRS,Sampling method,CI,0.024
+1,CV,3,CM 1S,Spatial distribution,CI,0.804
+1,CV,4,CM 1S+1M,Spatial distribution,CI,0.579
+1,CV,5,CM 1S+1M+2,Spatial distribution,CI,0.48
+1,CV,6,CM 1S+2,Spatial distribution,CI,0.736
+1,CV,7,CM Ran,Spatial distribution,CI,2.047
+1,CV,8,Poisson,Spatial distribution,CI,1.147
+1,CV,9,TRS x CM 1S,Interaction,CI,0.064
+1,CV,10,TRS x CM 1S+1M,Interaction,CI,0.109
+1,CV,11,TRS x CM 1S+1M +2,Interaction,CI,0.108
+1,CV,12,TRS x CM 1S+2,Interaction,CI,0.048
+1,CV,13,TRS x CM Ran,Interaction,CI,0.151
+1,CV,14,TRS x Poisson,Interaction,CI,0.094
+7,CV,1,Intercept,Intercept,CI,0.764
+7,CV,2,TRS,Sampling method,CI,0.014
+7,CV,3,CM 1S,Spatial distribution,CI,1.362
+7,CV,4,CM 1S+1M,Spatial distribution,CI,0.579
+7,CV,5,CM 1S+1M+2,Spatial distribution,CI,0.925
+7,CV,6,CM 1S+2,Spatial distribution,CI,1.225
+7,CV,7,CM Ran,Spatial distribution,CI,2.786
+7,CV,8,Poisson,Spatial distribution,CI,1.667
+7,CV,9,TRS x CM 1S,Interaction,CI,-0.023
+7,CV,10,TRS x CM 1S+1M,Interaction,CI,0.03
+7,CV,11,TRS x CM 1S+1M +2,Interaction,CI,0.012
+7,CV,12,TRS x 1S+2,Interaction,CI,0.008
+7,CV,13,TRS x CM Ran,Interaction,CI,0.46
+7,CV,14,TRS x Poisson,Interaction,CI,0.13
+0.1,Percent error,1,Intercept,Intercept,Estimate,-60.27192
+0.1,Percent error,2,Search effort,Search effort,Estimate,0.504
+0.1,Percent error,3,ACS,Sampling method,Estimate,-11.381
+0.1,Percent error,4,TRS,Sampling method,Estimate,-4.811
+0.1,Percent error,5,CM 1S,Spatial distribution,Estimate,-7.777
+0.1,Percent error,6,CM 1S+1M,Spatial distribution,Estimate,-8.218
+0.1,Percent error,7,CM 1S+1M+2,Spatial distribution,Estimate,-7.658
+0.1,Percent error,8,CM 1S+2,Spatial distribution,Estimate,-4.224
+0.1,Percent error,9,CM Ran,Spatial distribution,Estimate,3.41
+0.1,Percent error,10,Poisson,Spatial distribution,Estimate,-3.031
+0.1,Percent error,11,ACS x CM 1S,Interaction,Estimate,4.067
+0.1,Percent error,12,TRS x CM 1S,Interaction,Estimate,7.397
+0.1,Percent error,13,ACS x CM 1S+1M,Interaction,Estimate,5.311
+0.1,Percent error,14,TRS x CM 1S+1M,Interaction,Estimate,5.237
+0.1,Percent error,15,ACS x CM 1S+1M +2,Interaction,Estimate,7.703
+0.1,Percent error,16,TRS x CM 1S+1M +2,Interaction,Estimate,5.248
+0.1,Percent error,17,ACS x CM 1S+2,Interaction,Estimate,3.648
+0.1,Percent error,18,TRS x CM 1S+2,Interaction,Estimate,2.625
+0.1,Percent error,19,ACS x CM Ran,Interaction,Estimate,-2.446
+0.1,Percent error,20,TRS x CM Ran,Interaction,Estimate,-6.18
+0.1,Percent error,21,ACS x Poisson,Interaction,Estimate,3.862
+0.1,Percent error,22,TRS x Poisson,Interaction,Estimate,-0.349
+7,Percent error,1,Intercept,Intercept,Estimate,3.638
+7,Percent error,2,TRS,Sampling method,Estimate,-0.354
+7,Percent error,3,CM 1S,Spatial distribution,Estimate,6.208
+7,Percent error,4,CM 1S+1M,Spatial distribution,Estimate,5.393
+7,Percent error,5,CM 1S+1M+2,Spatial distribution,Estimate,3.942
+7,Percent error,6,CM 1S+2,Spatial distribution,Estimate,7.847
+7,Percent error,7,CM Ran,Spatial distribution,Estimate,14.567
+7,Percent error,8,Poisson,Spatial distribution,Estimate,8.569
+7,Percent error,9,TRS x CM 1S,Interaction,Estimate,-0.483
+7,Percent error,10,TRS x CM 1S+1M,Interaction,Estimate,-0.949
+7,Percent error,11,TRS x CM 1S+1M +2,Interaction,Estimate,-2.13
+7,Percent error,12,TRS x 1S+2,Interaction,Estimate,-2.875
+7,Percent error,13,TRS x CM Ran,Interaction,Estimate,-3.588
+7,Percent error,14,TRS x Poisson,Interaction,Estimate,-3.292
+0.1,CV,1,Intercept,Intercept,Estimate,39.899
+0.1,CV,2,Search effort,Search effort,Estimate,-0.163
+0.1,CV,3,ACS,Sampling method,Estimate,1.856
+0.1,CV,4,TRS,Sampling method,Estimate,-0.494
+0.1,CV,5,CM 1S,Spatial distribution,Estimate,0.012
+0.1,CV,6,CM 1S+1M,Spatial distribution,Estimate,-0.361
+0.1,CV,7,CM 1S+1M+2,Spatial distribution,Estimate,-0.601
+0.1,CV,8,CM 1S+2,Spatial distribution,Estimate,-0.328
+0.1,CV,9,CM Ran,Spatial distribution,Estimate,0.858
+0.1,CV,10,Poisson,Spatial distribution,Estimate,-0.218
+0.1,CV,11,ACS x CM 1S,Interaction,Estimate,-0.27
+0.1,CV,12,TRS x CM 1S,Interaction,Estimate,0.23
+0.1,CV,13,ACS x CM 1S+1M,Interaction,Estimate,0.09
+0.1,CV,14,TRS x CM 1S+1M,Interaction,Estimate,0.447
+0.1,CV,15,ACS x CM 1S+1M +2,Interaction,Estimate,0.451
+0.1,CV,16,TRS x CM 1S+1M +2,Interaction,Estimate,0.842
+0.1,CV,17,ACS x 1S+2,Interaction,Estimate,0.072
+0.1,CV,18,TRS x 1S+2,Interaction,Estimate,0.43
+0.1,CV,19,ACS x CM Ran,Interaction,Estimate,-0.846
+0.1,CV,20,TRS x CM Ran,Interaction,Estimate,-0.0923
+0.1,CV,21,ACS x Poisson,Interaction,Estimate,0.094
+0.1,CV,22,TRS x Poisson,Interaction,Estimate,0.752
+1,CV,1,Intercept,Intercept,Estimate,2.025
+1,CV,2,TRS,Sampling method,Estimate,-0.023
+1,CV,3,CM 1S,Spatial distribution,Estimate,0.743
+1,CV,4,CM 1S+1M,Spatial distribution,Estimate,0.521
+1,CV,5,CM 1S+1M+2,Spatial distribution,Estimate,0.428
+1,CV,6,CM 1S+2,Spatial distribution,Estimate,0.67
+1,CV,7,CM Ran,Spatial distribution,Estimate,1.852
+1,CV,8,Poisson,Spatial distribution,Estimate,1.052
+1,CV,9,TRS x CM 1S,Interaction,Estimate,-0.018
+1,CV,10,TRS x CM 1S+1M,Interaction,Estimate,0.027
+1,CV,11,TRS x CM 1S+1M +2,Interaction,Estimate,0.035
+1,CV,12,TRS x CM 1S+2,Interaction,Estimate,-0.038
+1,CV,13,TRS x CM Ran,Interaction,Estimate,-0.159
+1,CV,14,TRS x Poisson,Interaction,Estimate,-0.031
+7,CV,1,Intercept,Intercept,Estimate,0.755
+7,CV,2,TRS,Sampling method,Estimate,0.003
+7,CV,3,CM 1S,Spatial distribution,Estimate,1.329
+7,CV,4,CM 1S+1M,Spatial distribution,Estimate,0.98
+7,CV,5,CM 1S+1M+2,Spatial distribution,Estimate,0.895
+7,CV,6,CM 1S+2,Spatial distribution,Estimate,1.189
+7,CV,7,CM Ran,Spatial distribution,Estimate,2.58
+7,CV,8,Poisson,Spatial distribution,Estimate,1.587
+7,CV,9,TRS x CM 1S,Interaction,Estimate,-0.064
+7,CV,10,TRS x CM 1S+1M,Interaction,Estimate,-0.013
+7,CV,11,TRS x CM 1S+1M +2,Interaction,Estimate,-0.03
+7,CV,12,TRS x 1S+2,Interaction,Estimate,-0.036
+7,CV,13,TRS x CM Ran,Interaction,Estimate,0.115
+7,CV,14,TRS x Poisson,Interaction,Estimate,0.023
