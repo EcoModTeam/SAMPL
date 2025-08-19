@@ -1,0 +1,150 @@
+---
+title: "Mussel Sampling Model Variance Exploration"
+author: "Anonymous"
+date: "2024-03-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+```
+
+# Purpose 
+
+The purpose of this exploration is to determine how many model runs are needed per each scenario. To do this, we will examine how many runs are required for variation in estimated density/CPUE to stabilize.
+
+Note: The data used is from the behavior space "variance_convergence" which runs 9600 times. spatial distribution was set to poisson cluster, 10 clusters, poisson mean of 2 for all model runs. Quadrat size was set to 0.5.
+
+```{r}
+#read in data (for now copied into R project)
+raw_data <- read.csv("data/variance_convergence_6-17-2024.csv", sep = ",")
+
+#clean names
+clean_data <- clean_names(raw_data) %>% 
+  rename(mussel_density = true_mussel_density) #rename to shorter name
+```
+
+```{r}
+#write function for calculating cumulative variance 
+calc_cum_var <- function (x) {
+  n <- length(x)
+  cum_var <- numeric(n)
+  for (i in 2:n){
+    cum_var[i] <- var(x[1:i])
+  }
+  return(cum_var)
+  }
+```
+
+# Simple Random Sample (SRS)
+
+In this section we will look at variance in estimated density when the sampling method is simple-random sample. 
+
+```{r}
+#filter for only simple random sample
+all_srs <- filter(clean_data, sampling_method == "simple-random-sample")
+```
+
+For each SRS scenario there are different numbers of quadrats in the SRS and different mussel densities.
+
+```{r}
+#group data by mussel density and number of quadrats and calc cumulative variance
+var <- all_srs %>% 
+  group_by(mussel_density, srs_num_quadrats) %>% 
+  mutate(run_id = row_number()) %>% #arbitrary row number becomes x axis
+  mutate(variance_est_density = calc_cum_var(estimated_density))
+
+#plot row number on x axis, cumulative variance on y axis
+ggplot(data = var, aes(x=run_id, y = variance_est_density)) +
+  geom_line() +
+  facet_grid(mussel_density ~ srs_num_quadrats, 
+             beller=label_bothla, scales = "free_y") +
+  labs(title = "Cumulative Variance in Estimated Density (SRS)",
+       y = "variance in\nestimated density",
+       x = "number of model runs") +
+  theme_bw() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+  
+```
+
+
+# Transects 
+
+In this section we will look at variance in estimated density when the sampling method is Transect Sampling. 
+
+For each transect scenario there are different numbers of transects, different numbers of quadrats sampled in each transect and different mussel densities.
+
+
+```{r}
+#filter for only transect sampling
+all_tran <- filter(clean_data, sampling_method == "transect")
+
+#group by mussel density, number of transects, and quadrats per transect
+#then calculate the cumulative variance
+var_tran <- all_tran %>% 
+  group_by(mussel_density, 
+           number_transects, 
+           number_quadrats_per_transect) %>% 
+  mutate(run_id = row_number()) %>% 
+  mutate(number_quadrats_per_transect = as.character(number_quadrats_per_transect)) %>% 
+  mutate(variance_est_density = calc_cum_var(estimated_density))
+
+#plot the variance across model runs
+ggplot(data = var_tran, aes(x=run_id, y = variance_est_density, color = number_quadrats_per_transect)) +
+  geom_line() +
+  facet_grid(mussel_density ~ number_transects, 
+             labeller=label_both, scales = "free_y") +
+  labs(title = "Transect Cumulative Variance in Estimated Density")
+```
+
+
+# Adaptive Cluster Sample (ACS)
+
+In this section we will look at variance in estimated density (HH metric) when the sampling method is Adaptive Cluster Sampling. 
+
+For each ACS scenario there are different numbers of initial quadrats in the ACS and different mussel densities.
+
+```{r}
+#filter for only ACS
+all_acs <- filter(clean_data, sampling_method == "adaptive-cluster")
+
+#group by mussel density and number of initial quadrats
+var_acs <- all_acs %>% 
+  group_by(mussel_density, acs_num_quadrats) %>% 
+  mutate(run_id = row_number()) %>% 
+  mutate(variance_hh = calc_cum_var(hh_metric))
+
+#plot cumulative variance in the HH metric across model runs
+ggplot(data = var_acs, aes(x=run_id, y = variance_hh)) +
+  geom_line() +
+  facet_grid(mussel_density ~ acs_num_quadrats, 
+             labeller=label_both, scales = "free_y") +
+  labs(title = "ACS Cumulative Variance in HH Metric")
+```
+
+# Random Walks (evaluated using CPUE)
+
+In this section we will look at variance in catch per unit effort (CPUE - number of mussels detected in one person-hour) when the sampling method is random walking or timed search. 
+
+For each random walk scenario there are different mussel densities.
+
+```{r}
+#filter for only random walk sampling
+all_walk <- filter(clean_data, sampling_method == "timed-search")
+
+#group by mussel density and calculate cumulative variance
+var_walk <- all_walk %>% 
+  mutate(mussel_density = as.character(mussel_density)) %>% 
+  group_by(mussel_density) %>% 
+  mutate(run_id = row_number()) %>% 
+  mutate(variance_cpue = calc_cum_var(mussels_per_person_hour))
+
+#plot variance in CPUE
+ggplot(data = var_walk, aes(x=run_id, y = variance_cpue, color = mussel_density)) +
+  geom_line() +
+  labs(title = "Random walk Cumulative Variance in CPUE")
+```
+

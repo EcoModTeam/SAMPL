@@ -1,0 +1,525 @@
+---
+title: "H1 Timed Search"
+author: "Anonymous"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(broom)
+library(nlme)
+library(cowplot)
+```
+
+# Purpose 
+
+This Rmarkdown will be used to explore preliminary outputs of behavior space H1:
+"what is the relationship between CPUE and true density?"
+
+# Data
+
+Timed search was ran for 4.5 person hours when mussels had seven spatial distributions: random, matern clumps (subdivide up into five distibutions), and poisson clumps with 5 clumps and mean of 3. Density ranged from 0.0 to 7 with increments of 0.1. there were 100 iterations for each scenario
+
+```{r}
+#read in data
+matern <- read.csv("data/H1_matern_timed.csv") %>% 
+  clean_names() %>% 
+  filter(detectability_of_common_mussels == 0.3)
+
+poisson <- read.csv("data/H1_poisson_timed.csv") %>% 
+  clean_names() %>% 
+  filter(detectability_of_common_mussels == 0.3)
+
+random <- read.csv("data/H1_random_timed.csv") %>% 
+  clean_names() %>% 
+  filter(detectability_of_common_mussels == 0.3)
+
+os_matern <- matern %>% 
+  filter(matern_clump_placement == "One shore only")
+
+os_om_matern <- matern %>% 
+  filter(matern_clump_placement == "One shore; one middle")
+
+os_om_two_matern <- matern %>% 
+  filter(matern_clump_placement == "One shore; one middle; 2 additional")
+
+os_two_matern <- matern %>% 
+  filter(matern_clump_placement == "One shore; 2 additional")
+
+three_matern <- matern %>% 
+  filter(matern_clump_placement == "Randomly placed")
+```
+
+# linear models
+
+```{r}
+#create linear regression models
+lm_random <- lm(mussels_per_person_hour ~ true_mussel_density, data = random)
+
+
+lm_poisson <- lm(mussels_per_person_hour ~ true_mussel_density, data = poisson)
+
+
+lm_os <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_matern)
+
+
+lm_os_om <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_om_matern)
+
+
+lm_os_om_two <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_om_two_matern)
+
+
+lm_os_two <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_two_matern)
+
+
+lm_three <- lm(mussels_per_person_hour ~ true_mussel_density, data = three_matern)
+
+
+```
+
+# test for heteroscedasticity 
+
+```{r}
+#yes, data is heteroscedastic
+plot(fitted(lm_random), resid(lm_random), xlab = "fitted vals", ylab = "residuals")
+```
+
+# test for normality
+
+```{r}
+#qqplot
+qqnorm(residuals(lm_random))
+qqline(residuals(lm_random), col = "red")
+
+#histogram
+hist(residuals(lm_random), breaks = 50)
+
+#data is normal enough
+```
+
+# weighted regressions
+
+```{r}
+#create weights 
+w_random <- 1/abs(residuals(lm_random))
+
+#weighted regression
+wlm_random <- lm(mussels_per_person_hour ~ true_mussel_density, data = random, weights = w_random)
+
+#testing 
+#plot(wlm_random)
+summary(wlm_random)
+```
+
+
+```{r}
+w_poisson <- 1/abs(residuals(lm_poisson))
+wlm_poisson <- lm(mussels_per_person_hour ~ true_mussel_density, data = poisson, weights = w_poisson)
+summary(wlm_poisson)
+```
+
+
+```{r}
+w_os <- 1/abs(residuals(lm_os))
+wlm_os <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_matern, weights = w_os)
+summary(wlm_os)
+```
+
+
+```{r}
+w_os_om <- 1/abs(residuals(lm_os_om))
+wlm_os_om <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_om_matern, weights = w_os_om)
+summary(wlm_os_om)
+```
+
+
+```{r}
+w_os_om_two <- 1/abs(residuals(lm_os_om_two))
+wlm_os_om_two <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_om_two_matern, weights = w_os_om_two)
+summary(wlm_os_om_two)
+```
+
+
+```{r}
+w_os_two <- 1/abs(residuals(lm_os_two))
+wlm_os_two <- lm(mussels_per_person_hour ~ true_mussel_density, data = os_two_matern, weights = w_os_two)
+summary(wlm_os_two)
+```
+
+
+```{r}
+w_three <- 1/abs(residuals(lm_three))
+wlm_three <- lm(mussels_per_person_hour ~ true_mussel_density, data = three_matern, weights = w_three)
+summary(wlm_three)
+```
+
+#make table
+
+```{r}
+table_random <- broom::tidy(wlm_random) %>% 
+  mutate(spatial_dist = "random")
+
+table_poisson <- broom::tidy(wlm_poisson) %>% 
+  mutate(spatial_dist = "poisson")
+
+table_os <- broom::tidy(wlm_os)%>% 
+  mutate(spatial_dist = "matern + 1S")
+
+table_os_om <- broom::tidy(wlm_os_om) %>% 
+  mutate(spatial_dist = "matern + 1S + 1M")
+
+table_os_om_two <- broom::tidy(wlm_os_om_two) %>% 
+  mutate(spatial_dist = "matern + 1S + 1M + 2")
+
+table_os_two <- broom::tidy(wlm_os_two) %>% 
+  mutate(spatial_dist = "matern + 1S + 2")
+
+table_three <- broom::tidy(wlm_three) %>% 
+  mutate(spatial_dist = "matern + 3")
+
+model_table <- rbind(table_random, table_poisson, table_os, table_os_om, table_os_om_two, table_os_two, table_three) %>%
+  mutate_all(~if(is.numeric(.)) round(., 3) else . )
+
+```
+
+#make predictions and plot
+
+```{r}
+#make density data for predictions
+true_mussel_density = seq(from=0,to=7,length.out=1000)
+
+#make predictions
+p_random = cbind(true_mussel_density, predict(wlm_random, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_poisson = cbind(true_mussel_density,predict(wlm_poisson, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_os = cbind(true_mussel_density, predict(wlm_os, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_os_om = cbind(true_mussel_density,predict(wlm_os_om, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_os_om_two = cbind(true_mussel_density,predict(wlm_os_om_two, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_os_two = cbind(true_mussel_density,predict(wlm_os_two, newdata=list(true_mussel_density), interval = "confidence"))
+
+p_three = cbind(true_mussel_density, predict(wlm_three, newdata=list(true_mussel_density), interval = "confidence"))
+```
+
+# Individual plot
+
+```{r}
+#set common limits for y scale
+y_limits <- c(0, 300)
+              
+random_plot <- ggplot() +
+  geom_point(data = random, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_random, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#CC79A7", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Random",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+  
+poisson_plot <- ggplot() +
+  geom_point(data = poisson, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_poisson, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#D55E00", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Poisson",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+os_plot <- ggplot() +
+  geom_point(data = os_matern, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_os, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#E69F00", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Matern 1S",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+os_om_plot <- ggplot() +
+  geom_point(data = os_om_matern, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_os_om, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#56B4E9", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Matern 1S+1M",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+os_om_two_plot <- ggplot() +
+  geom_point(data = os_om_two_matern, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_os_om_two, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#009E73", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Matern 1S+1M+2",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+os_two_plot <- ggplot() +
+  geom_point(data = os_two_matern, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_os_two, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#F0E442", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Matern 1S+2",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+three_plot <- ggplot() +
+  geom_point(data = three_matern, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour), 
+             color = "darkgray", alpha = 0.5) + 
+  geom_line(data = p_three, 
+            aes(x = true_mussel_density, y = fit), 
+            color = "#0072B2", size = 1) +
+  ylim(y_limits) +
+  labs(title = "Clumped Matern 3",
+       x = expression(paste("true mussel density (", m^{2}, ")")),
+       y = "CPUE") +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+  
+```
+
+# Cowplot of all plots
+```{r}
+# Combine plots into a grid
+combined_plot <- plot_grid(
+  random_plot, poisson_plot, os_plot, 
+  os_om_plot, os_om_two_plot, os_two_plot, 
+  three_plot,
+  ncol = 3,
+  align = "v",
+  labels = "AUTO")
+
+ggdraw(combined_plot)
+
+ggsave("figures/H1_combined_plot_detect_0.3.png", plot = combined_plot, width = 12, height = 8)
+
+```
+
+
+# Combined plot
+
+```{r}
+#bind predictions into dataframe
+predictions <- data.frame(random = data.frame(p_random)$fit,
+                          poisson = data.frame(p_poisson)$fit,
+                          os = data.frame(p_os)$fit,
+                          os_om = data.frame(p_os_om)$fit,
+                          os_om_two = data.frame(p_os_om_two)$fit,
+                          os_two = data.frame(p_os_two)$fit,
+                          three = data.frame(p_three)$fit,
+                          true_mussel_density = true_mussel_density) %>% 
+  pivot_longer(!true_mussel_density, names_to = "spatial_distribution", values_to = "CPUE")
+
+#plot predictions 
+plot <- ggplot(data = predictions) +
+  geom_line(aes(x = true_mussel_density, y = CPUE, color = spatial_distribution), size = 1) +
+  labs(x = expression(paste("true mussel density (", m^{2}, ")"))) +
+  scale_color_manual(name = "Mussel Spatial Distribution",
+                     values = c("random" = "#CC79A7", 
+                                "poisson" = "#D55E00",
+                                "os" = "#E69F00",
+                                "os_om" =  "#56B4E9",
+                                "os_om_two" = "#009E73",
+                                "os_two" = "#F0E442",
+                                "three" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "poisson" = "Poisson",
+                                "os" = "Clumped Matern 1S",
+                                "os_om" = "Clumped Matern 1S+1M",
+                                "os_om_two" = "Clumped Matern 1S+1M+2",
+                                "os_two" = "Clumped Matern 1S+2", 
+                                "three" = "Clumped Matern 3"),
+                     limits = c("random", "poisson", "os", 
+                                "os_om", "os_om_two", "os_two", "three")) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+plot
+
+ggsave("figures/H1_cpue_density_0.3.png", plot = plot, width = 10, height = 8)
+
+```
+
+# Looking at variance
+
+
+```{r}
+#combine all data
+combined_data <- rbind(
+  random,
+  poisson,
+  matern
+) %>% 
+  #get matern labels into spatial dist column
+  mutate(spatial_distribution = case_when(spatial_distribution == "Clumped-Matern" ~
+                                            matern_clump_placement, 
+                                          T ~ spatial_distribution))
+
+#relabel spatial distribution and set factor levels
+combined_data$spatial_distribution <- factor(combined_data$spatial_distribution,
+                                             levels = c("random", 
+                                                        "Clumped-Poisson", 
+                                                        "One shore only", 
+                                                        "One shore; one middle", 
+                                                        "One shore; one middle; 2 additional", 
+                                                        "One shore; 2 additional", 
+                                                        "Randomly placed"), 
+                                             labels = c("Random", 
+                                                        "Poisson", 
+                                                        "Clumped Matern 1S",
+                                                        "Clumped Matern 1S+1M",
+                                                        "Clumped Matern 1S+1M+2",
+                                                        "Clumped Matern 1S+2",
+                                                        "Clumped Matern 3"
+                                             )) 
+```
+
+Here I am looking at variance. Since high mussel density produces the most variance, I will compare variance between spatial distributions when mussel density is 7 mussels per meter.
+
+- Variance
+
+- Standard Deviation
+
+- Interquartile Range
+
+- Range
+
+- Coefficient of Variation
+
+- Skewness
+
+- Kurtosis 
+
+- Outliers
+
+## Data Viz
+
+```{r}
+library(gganimate)
+library(transformr)
+
+combined_data <- combined_data %>% filter(true_mussel_density == 7)
+
+# Violin plot to show distribution and variation
+vio_plot <- ggplot(combined_data, aes(x = spatial_distribution, y = mussels_per_person_hour, 
+                          fill = spatial_distribution)) +
+  geom_violin(scale = "count", 
+              trim = T) + 
+   scale_fill_manual(name = "Mussel Spatial Distribution",
+                     values = c("Random" = "#CC79A7", 
+                                "Poisson" = "#D55E00",
+                                "Clumped Matern 1S"= "#E69F00",
+                                "Clumped Matern 1S+1M" =  "#56B4E9",
+                                "Clumped Matern 1S+1M+2" = "#009E73",
+                                "Clumped Matern 1S+2" = "#F0E442",
+                                "Clumped Matern 3" = "#0072B2")) +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  theme_minimal() +
+  labs(title = paste("Distribution of CPUE when mussel density is 7 mussels per meter"), 
+       x = "Spatial Distribution", 
+       y = "CPUE") +
+  theme(legend.position = "none",
+        axis.title.y = element_text(angle = 0, vjust = 0.5)
+        ) + 
+  ylim(0, NA)
+
+#print it
+vio_plot
+
+#animate the plot
+# animated_plot <- vio_plot + 
+#   transition_states(
+#     true_mussel_density, 
+#     transition_length = 2, 
+#     state_length = 1, 
+#     wrap = TRUE
+#   ) +
+#   enter_fade() + 
+#   exit_fade() +
+#   ease_aes('linear')
+
+# #render it
+# rendered_anim <- animate(animated_plot, nframes = 100, fps = 10, width = 600, height = 400, renderer = gifski_renderer())
+# 
+# anim_save("figures/violin_plot_cpue_by_density.gif", rendered_anim)
+
+ggsave("figures/H1_distribution_cpue_density_7.png", plot = vio_plot, width = 10, height = 8)
+```
+
+## SD and Range
+
+```{r}
+combined_variance <- combined_data %>% 
+  group_by(spatial_distribution, true_mussel_density) %>% 
+  summarise(min = min(mussels_per_person_hour),
+            max = max(mussels_per_person_hour),
+            mean = mean(mussels_per_person_hour),
+            variance = var(mussels_per_person_hour), 
+            standard_dev = sd(mussels_per_person_hour)) %>% 
+   mutate_if(is.numeric, round, digits = 2)
+```
+
+
+```{r}
+ggplot(data = combined_variance) +
+  geom_line(aes(x = true_mussel_density, y = mean, color = spatial_distribution)) +
+  labs(title = "Mean CPUE by spatial distribution as density increases")
+```
+
+
+```{r}
+ggplot(data = combined_variance) +
+  geom_line(aes(x = true_mussel_density, y = standard_dev, color = spatial_distribution)) +
+  labs(title = "Standard deviation in CPUE by spatial distribution as density increases")
+
+```
+
+
+
+# Density from Timed Search
+
+```{r}
+ggplot(data = random) +
+  geom_point(aes(x = true_mussel_density, y = (total_mussels_detected/(total_quadrats_sampled/4))))
+
+ggplot(data = os_matern) +
+  geom_point(aes(x = true_mussel_density, y = (total_mussels_detected/(total_quadrats_sampled/4))))
+```
+

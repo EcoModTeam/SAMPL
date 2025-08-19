@@ -1,0 +1,403 @@
+---
+title: "H1 Exploration"
+author: "Anonymous"
+date: "2024-03-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+```
+
+
+# Purpose 
+
+This Rmarkdown will be used to explore preliminary outputs of behavior space H1:
+"what is the relationship between CPUE and estimated density metrics from other methods?"
+
+# Data
+
+I used two sources of data. 
+
+The first one, `H1...csv` is the output of the behavior space experiment for H1. It includes all four sampling methods, four different mussel densities, and a clustered and random spatial distribution of mussels. There are 100 iterations per each scenario
+
+The second data source, `H1_just_CPUE....csv` is from the H1_just_CPUE behavior space experiment. It drills down on just the random walk sampling method. It includes one sampling method, random-walk, mussel densities between 0 and 10 at increments of 0, and random and clustered spatial distributions. There are 100 iterations per each scenario.
+
+# Analysis of Sampling Methods
+
+```{r}
+#read in data (for now copied into R project)
+raw_data <- read.csv("data/H1_6-17-2024.csv", sep = ",")
+
+#clean names
+clean_data <- clean_names(raw_data)
+```
+
+In this section I will examine the random walk sampling method
+
+```{r}
+#filter for random walk
+random_walk <- clean_data %>% 
+  filter(sampling_method == "timed-search")
+
+#convert true mussel density to a factor
+random_walk$true_mussel_density <- as.factor(random_walk$true_mussel_density)
+
+#convert cpue to numeric
+random_walk$cpue <- as.numeric(random_walk$mussels_per_person_hour)
+
+#plot boxplot
+ggplot(data = random_walk, 
+       aes(x = true_mussel_density, y = cpue, color = spatial_distribution)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8,
+                outlier.size=4) +
+  labs(title = "Random Walk CPUE at different densities boxplot")
+
+#plot jitter plot
+ggplot(data = random_walk, 
+       aes(x = true_mussel_density, y = cpue, color = spatial_distribution)) +
+  geom_jitter() +
+  labs(title = "Random Walk CPUE at different densities jitter plot")
+```
+
+In this section I will examine the simple random sample (SRS) Sampling Method
+
+```{r}
+#filter for simple random sample
+srs <- clean_data %>% 
+  filter(sampling_method == "simple-random-sample")
+
+#convert mussel density to factor
+srs$true_mussel_density <- as.factor(srs$true_mussel_density)
+
+#convert estimated density to numeric
+srs$estimated_density <- as.numeric(srs$estimated_density)
+
+#boxplot
+ggplot(data = srs, 
+       aes(x = true_mussel_density, y = estimated_density, 
+           color = spatial_distribution)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8,
+                outlier.size=4) +
+  labs(title = "SRS estimated density at different densities boxplot")
+```
+
+
+```{r}
+#calculate variance per density and distribution group
+var_est_density <- clean_data %>% 
+  filter(sampling_method == "adaptive-cluster") %>% 
+  group_by(true_mussel_density, spatial_distribution) %>% 
+  summarise(var_est_density = var(hh_metric))
+
+ggplot(data = var_est_density, 
+       aes(x = as.factor(true_mussel_density), y = var_est_density, 
+           color = spatial_distribution)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8,
+                outlier.size=4) +
+  labs(title = "ACS variance in estimated density at different densities boxplot")
+```
+
+In this section I will examine the transect Sampling Method
+
+```{r}
+#filter for transect
+transect <- clean_data %>% 
+  filter(sampling_method == "transect")
+
+#convert mussel density to factor
+transect$true_mussel_density <- as.factor(transect$true_mussel_density)
+
+#convert estimated density to numeric
+transect$estimated_density <- as.numeric(transect$estimated_density)
+
+#create a boxplot
+ggplot(data = transect, 
+       aes(x = true_mussel_density, y = estimated_density, 
+           color = spatial_distribution)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8,
+                outlier.size=4) +
+  labs(title = "Transect estimated density at different densities boxplot")
+```
+
+In this section I will examine the Adaptive Cluster Sampling (ACS) Method
+
+
+```{r}
+#filter for adaptive cluster
+acs <- clean_data %>% 
+  filter(sampling_method == "adaptive-cluster")
+
+#convert mussel density to factor
+acs$true_mussel_density <- as.factor(acs$true_mussel_density)
+
+#convert hh metric to numeric
+acs$hh_metric <- as.numeric(acs$hh_metric)
+
+#make a boxplot
+ggplot(data = acs, 
+       aes(x = true_mussel_density, y = hh_metric, 
+           color = spatial_distribution)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8,
+                outlier.size=4) +
+  labs(title = "ACS HH at different densities boxplot")
+```
+
+# How does CPUE relate to true density?
+
+calculate co-variance and pearson's correlation coefficient between true density and CPUE.
+
+```{r}
+#using the random walk subset created above...
+
+#convert mussel density to numeric
+random_walk$true_mussel_density <- as.numeric(random_walk$true_mussel_density)
+
+#covariance and pearson correlation coefficient
+random_walk %>% 
+  group_by(spatial_distribution) %>% 
+  summarise(
+    covarience = cov(true_mussel_density, cpue),
+    correlation_coef = cor(true_mussel_density, cpue, method = "pearson"))
+```
+
+Test for a linear relationship 
+
+```{r}
+#create a linear model linear relationship
+lm <- lm(true_mussel_density~cpue, data = random_walk)
+
+#summarise to view important metrics
+summary(lm)
+```
+
+In conclusion, yes true mussel density and CPUE are correlated. There is a decent linear relationship between the two metrics.
+
+# Taking a Deeper Dive into CPUE 
+
+I reran the simulation with just random walking, and densities between 0 and 10 at increments of 0.1
+
+```{r}
+#read in new data
+just_cpue_raw <- read.csv("data/H1_just_CPUE_6-17-2024.csv", sep = ",")
+
+#clean names
+just_cpue <- clean_names(just_cpue_raw)
+```
+
+Make some exploratory plots
+
+```{r}
+#create a geom point to look at data
+ggplot(data = just_cpue, 
+       aes(x = true_mussel_density, y = mussels_per_person_hour, color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "CPUE vs true mussel density")
+
+#let's look at CPUE at lower density..
+#filter for low density
+low_density <- just_cpue %>% 
+  filter(true_mussel_density < 1.5)
+
+ggplot(data = low_density, 
+       aes(x = true_mussel_density, y = mussels_per_person_hour, color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "CPUE vs true mussel density just low density")
+
+#let's ignore the variation and just look at mean cpue per density
+#group by mussel density (remember there were 100 iterations per density)
+#calculate mean CPUE
+means <- just_cpue %>% 
+  group_by(true_mussel_density, spatial_distribution) %>% 
+  summarise(mean_cpue = mean(mussels_per_person_hour))
+
+ggplot(data = means, 
+       aes(x = true_mussel_density, y = mean_cpue,
+           color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "Mean CPUE vs true mussel density")
+
+#now look at mean CPUE at low density...is there a faint curve?
+low_density_means <- means %>% 
+  filter(true_mussel_density < 1.5)
+
+ggplot(data = low_density_means, 
+       aes(x = true_mussel_density, y = mean_cpue, 
+           color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "Mean CPUE vs true mussel density just low density")
+```
+
+I also want to look at the variance in CPUE across different true densities
+
+```{r}
+#calculate variance per density and distribution group
+var_cpue <- just_cpue %>% 
+  group_by(true_mussel_density, spatial_distribution) %>% 
+  summarise(variance_cpue = var(mussels_per_person_hour))
+
+#plot variance in cpue over different density
+ggplot(data = var_cpue, 
+       aes(x = true_mussel_density, y = variance_cpue,
+           color = spatial_distribution)) +
+  geom_line() +
+  labs(title = "Variance in CPUE vs true mussel density")
+  
+```
+
+# Is the relationship between CPUE and density linear??
+
+compare linear regression model to log regression model
+
+```{r}
+#create linear regression model
+lm <- lm(mussels_per_person_hour ~ true_mussel_density, data = just_cpue)
+
+#summarize to view important metrics
+summary(lm)
+```
+
+
+```{r}
+plot(just_cpue$true_mussel_density, just_cpue$mussels_per_person_hour)
+
+#define x-values to use for regression line
+true_mussel_density = seq(from=0,to=10,length.out=1000)
+
+#use the model to predict the y-values based on the x-values
+cpue = predict(lm, 
+               newdata=list(true_mussel_density=seq(from=0.01,to=10,length.out=1000)), 
+          
+               interval="confidence")
+
+cpue_df <- as.data.frame(cpue)
+
+#add the fitted regression line to the plot (lwd specifies the width of the line)
+matlines(true_mussel_density, cpue, lwd=2)
+
+ggplot() +
+  geom_point(color = "blue", data = just_cpue, 
+             aes(x = true_mussel_density, y = mussels_per_person_hour)) +
+  geom_abline(slope = coef(lm)[["true_mussel_density"]], 
+              intercept = coef(lm)[["(Intercept)"]]) +
+  labs(title = "Relationship between mussels per person-hour and true mussel density",
+       x = "mussels per square meter",
+       y = "mussels per\nperson-hour") +
+  theme_bw() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+  
+
+```
+
+
+```{r}
+#first filter out 0 values 
+no_zero <- just_cpue %>% 
+  filter(mussels_per_person_hour > 0)
+
+#log regression
+log <- lm(formula = mussels_per_person_hour ~ log(true_mussel_density), data = no_zero)
+
+#print summary
+summary(log)
+```
+
+
+```{r}
+plot(just_cpue$true_mussel_density, just_cpue$mussels_per_person_hour)
+
+#define x-values to use for regression line
+true_mussel_density = seq(from=0,to=10,length.out=1000)
+
+#use the model to predict the y-values based on the x-values
+cpue = predict(log, 
+               newdata=list(true_mussel_density=seq(from=0.01,to=10,length.out=1000)), 
+          
+               interval="confidence")
+
+#add the fitted regression line to the plot (lwd specifies the width of the line)
+matlines(true_mussel_density,cpue, lwd=2)
+
+```
+
+the previous models included both clustered and random spatial distributions. Would the linear model improve if we only had one type of spatial distribution?
+
+```{r}
+#filter for random spatial distribution
+just_cpue_random <- filter(just_cpue, spatial_distribution == "random")
+
+#filter for just clustered distribution
+just_cpue_clustered <- filter(just_cpue, spatial_distribution == "Clumped-Poisson")
+
+#create linear regression model for random
+lm_random <- lm(mussels_per_person_hour ~ true_mussel_density, data = just_cpue_random)
+
+#create linear regression model for clustered
+lm_cluster <- lm(mussels_per_person_hour ~ true_mussel_density, data = just_cpue_clustered)
+
+#summarize to view important metrics
+summary(lm_random)
+summary(lm_cluster)
+```
+
+Unsurprisingly, we can see when mussels are randomly distributed, the cpue has a linear relationship with cpue and even more of the variance can be explained by the model (indicated by the higher R-squared value).
+
+# Quadrats Sampled/Time Searching vs Density
+
+Now I will look at how much area/time is covered per random-walk model run. Area covered can be examined via `total_quadrats_sampled` but it's important to remember that a surveyor can re-search a quadrat that has already been sampled and this will *not* be reflected in the `total_quadrats_sampled` variable. Also, remember there are always three surveyors and that in this model simulation quadrats are (0.5m X 0.5m)
+
+```{r}
+#convert total quadrats to numeric
+just_cpue$total_quadrats_sampled <- as.numeric(just_cpue$total_quadrats_sampled)
+
+#covert total quadrats to square m
+just_cpue_m <- just_cpue %>% 
+  mutate(m_sampled = total_quadrats_sampled * (0.5 * 0.5))
+
+#plot m sampled
+ggplot(data = just_cpue_m, 
+       aes(y = m_sampled, x = true_mussel_density, color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "square meters sampled by all surveyors vs mussel density")
+
+#plot average m per person sampled
+ggplot(data = just_cpue_m, 
+       aes(y = m_sampled/3, x = true_mussel_density, color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "square meters sampled per surveyor vs mussel density")
+```
+
+let's also look at variance in number of mussels detected per density
+
+```{r}
+#convert mussels detected to numeric
+just_cpue$total_mussels_detected <- as.numeric(just_cpue$total_mussels_detected)
+
+#plot mussels detected 
+ggplot(data = just_cpue, 
+       aes(y = total_mussels_detected, x = true_mussel_density, 
+           color = spatial_distribution)) +
+  geom_point() +
+  labs(title = "Mussels Detected vs mussel density")
+
+#variation
+var_m_detect <- just_cpue %>% 
+  group_by(true_mussel_density, spatial_distribution) %>% 
+  summarise(var_mussels_detected = var(total_mussels_detected))
+
+#plot mussels detected 
+ggplot(data = var_m_detect, 
+       aes(y = var_mussels_detected, x = true_mussel_density, 
+           color = spatial_distribution)) +
+  geom_line() +
+  labs(title = "Variance in Mussels Detected (timed search)",
+       x = "mussels per square meter",
+       y = "variance in number of\nmussels detected",
+       color = "mussel distribution") +
+  theme_bw() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+```
+

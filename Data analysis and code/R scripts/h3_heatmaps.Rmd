@@ -1,0 +1,114 @@
+---
+title: "Proportion Table"
+author: "Anonymous"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+# Proportion Detected
+
+```{r}
+#read in data
+proportion_preds <- read.csv("data/proportion_predictions.csv")
+```
+
+```{r}
+#filter data
+half_detected <- proportion_preds %>%
+  group_by(search_method, spatial_distribution, density_cat) %>%
+  mutate(diff = abs(predicted - 0.95)) %>%
+  filter(diff == min(diff)) %>% 
+  filter(search_method != "QTS") 
+
+#define labels for spatial distribution
+relabel <- c(
+  "random" = "Random", 
+  "Clumped-Poisson" = "Poisson",
+  "One shore only" = "Clumped Matern 1S",
+  "One shore; one middle" = "Clumped Matern 1S+1M",
+  "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+  "One shore; 2 additional" = "Clumped Matern 1S+2", 
+  "Randomly placed" = "Clumped Matern 3"
+)
+
+half_detected <- half_detected %>% 
+  mutate(spatial_distribution = recode(spatial_distribution, !!!relabel)) %>% 
+  mutate(mussel_distribution = paste(spatial_distribution, density_cat, sep = " - ")) %>% 
+  select(-c(diff, rse, X)) 
+  
+```
+
+
+```{r}
+#make heatmap
+ggplot(half_detected, aes(x = search_method, 
+                          y = mussel_distribution, 
+                          fill = intensity)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "#0072B2") +
+  geom_text(aes(label = round(intensity, 2)), color = "black") +
+  labs(x = "Sampling Method", y = "Mussel Distribution\n and Density", 
+       title = expression("Approximate area (m"^2*") required to detect 95% of mussels in 500 m" ^2* " model domain"),
+       fill = expression("Meters" ^2*"")) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
+        plot.margin = margin(10, 10, 10, 10))
+  
+ggsave("figures/H3_proportion_95_heatmap.png", width = 12, height = 8)
+```
+
+# Percent Error
+
+```{r}
+#read in data
+pe_preds <- read.csv("data/pe_predictions.csv")
+```
+
+```{r}
+#filter data
+small_pe <- pe_preds %>%
+  group_by(search_method, spatial_distribution, density_cat) %>%
+  mutate(diff = abs(predicted - 50)) %>%
+  filter(diff == min(diff))
+
+#define labels for spatial distribution
+relabel <- c(
+  "random" = "Random", 
+  "Clumped-Poisson" = "Poisson",
+  "One shore only" = "Clumped Matern 1S",
+  "One shore; one middle" = "Clumped Matern 1S+1M",
+  "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+  "One shore; 2 additional" = "Clumped Matern 1S+2", 
+  "Randomly placed" = "Clumped Matern 3"
+)
+
+small_pe <- small_pe %>% 
+  mutate(spatial_distribution = recode(spatial_distribution, !!!relabel)) %>% 
+  mutate(mussel_distribution = paste(spatial_distribution, density_cat, sep = " - ")) %>% 
+  select(-c(diff, rse, X)) 
+  
+```
+
+
+```{r}
+#make heatmap
+ggplot(small_pe, aes(x = search_method, 
+                          y = mussel_distribution, 
+                          fill = intensity)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "#0072B2") +
+  geom_text(aes(label = round(intensity, 2)), color = "black") +
+  labs(x = "Sampling Method", y = "Mussel Distribution\n and Density", 
+       title = expression("Approximate area sampled (m"^2*") to produce a density estimate with a percent error of 50"),
+       fill = expression("Meters" ^2*"")) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
+        plot.margin = margin(10, 10, 10, 10))
+  
+ggsave("figures/H3_pe_50_heatmap.png", width = 12, height = 8)
+```

@@ -1,0 +1,344 @@
+---
+title: "H3_exploration"
+author: "Anonymous"
+date: "2024-07-08"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+```
+
+# Data
+
+This data was produced on 7/16/2024. If the model is rerun, new data must be manually copied over to the data file in this R project!
+
+```{r}
+#reading in the data
+
+#matern distribution data
+h3_matern_acs <- read.csv("data/H3_matern_acs.csv")
+h3_matern_srs <- read.csv("data/H3_matern_srs.csv")
+h3_matern_timed <- read.csv("data/H3_matern_timed.csv")
+h3_matern_transect <- read.csv("data/H3_matern_transect.csv")
+
+#poisson distribution data
+h3_poisson_acs <- read.csv("data/H3_poisson_acs.csv")
+h3_poisson_srs <- read.csv("data/H3_poisson_srs.csv")
+h3_poisson_timed <- read.csv("data/H3_poisson_timed.csv")
+h3_poisson_transect <- read.csv("data/H3_poisson_transect.csv")
+
+#random distribution data
+h3_random_acs <- read.csv("data/H3_random_acs.csv")
+h3_random_srs <- read.csv("data/H3_random_srs.csv")
+h3_random_timed <- read.csv("data/H3_random_timed.csv")
+h3_random_transect <- read.csv("data/H3_random_transect.csv")
+```
+
+# Simple Random Sampling
+
+```{r}
+#clean_names
+srs_clean <- rbind(h3_matern_srs, h3_poisson_srs, h3_random_srs) %>% 
+  janitor::clean_names()
+
+#calculate mean residual
+srs_residual <- srs_clean %>% 
+  mutate(residual = abs(true_mussel_density - estimated_density))
+```
+
+```{r}
+#look at over all trends
+srs_grouped <- srs_residual%>% 
+  group_by(spatial_distribution, total_quadrats_sampled) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = srs_grouped) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = spatial_distribution)) +
+   labs(title = "Mean residual (SRS)")
+```
+
+```{r}
+#look at trends broken up by density
+srs_grouped_density <- srs_residual %>% 
+  group_by(spatial_distribution, total_quadrats_sampled, true_mussel_density) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = srs_grouped_density) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = spatial_distribution)) +
+  facet_grid(rows = vars(true_mussel_density), scales = "free") +
+  labs(title = "Mean residual at different densities (SRS)")
+
+```
+
+```{r}
+#look at trends within poisson cluster types
+srs_poisson <- srs_residual %>% 
+  filter(spatial_distribution == "Clumped-Poisson")
+
+srs_grouped_poisson <- srs_poisson %>% 
+  group_by(total_quadrats_sampled, number_of_clumps, poisson_mean) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = srs_grouped_poisson) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = as.factor(poisson_mean))) +
+  facet_grid(rows = vars(number_of_clumps)) +
+  labs(title = "Mean residual with different number of poisson clumps (SRS)")
+
+```
+
+```{r}
+#look at trends within matern cluster types
+srs_matern <- srs_residual %>% 
+  filter(spatial_distribution == "Clumped-Matern")
+
+srs_grouped_matern <- srs_matern %>% 
+  group_by(total_quadrats_sampled, matern_clump_placement) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = srs_grouped_matern) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = matern_clump_placement)) +
+  labs(title = "Mean residual with different matern configuration (SRS)")
+
+```
+
+# Transects
+
+```{r}
+#clean_names
+transect_clean <- rbind(h3_matern_transect, h3_poisson_transect, h3_random_transect) %>% 
+  janitor::clean_names()
+
+#calculate mean residual
+transect_mean_residual <- transect_clean %>% 
+  mutate(residual = abs(true_mussel_density - estimated_density))
+```
+
+```{r}
+#look at over all trends
+transect_grouped <- transect_mean_residual%>% 
+  group_by(spatial_distribution, total_quadrats_sampled) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = transect_grouped) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = spatial_distribution)) +
+  labs(title = "Mean residual (Transect)")
+```
+
+```{r}
+#look at trends broken up by density
+transect_grouped_density <- transect_mean_residual%>% 
+  group_by(spatial_distribution, total_quadrats_sampled, true_mussel_density) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = transect_grouped_density) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = spatial_distribution)) +
+  facet_grid(rows = vars(true_mussel_density), scales = "free")  +
+  labs(title = "Mean residual at different densities (Transect)")
+```
+
+```{r}
+#look at trends within poisson cluster types
+transect_poisson <- transect_mean_residual %>% 
+  filter(spatial_distribution == "Clumped-Poisson")
+
+transect_grouped_poisson <- transect_poisson %>% 
+  group_by(total_quadrats_sampled, number_of_clumps, poisson_mean) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = transect_grouped_poisson) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = as.factor(poisson_mean))) +
+  facet_grid(rows = vars(number_of_clumps)) +
+  labs(title = "Mean residual with different number of poisson clumps (Transect)")
+```
+
+```{r}
+#look at trends within matern cluster types
+transect_matern <- transect_mean_residual %>% 
+  filter(spatial_distribution == "Clumped-Matern")
+
+transect_grouped_matern <- transect_matern %>% 
+  group_by(total_quadrats_sampled, matern_clump_placement) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = transect_grouped_matern) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = matern_clump_placement)) +
+  labs(title = "Mean residual with different matern configuration (Transect)")
+```
+
+
+# ACS
+
+```{r}
+#clean_names
+acs_clean <- rbind(h3_matern_acs, h3_poisson_acs, h3_random_acs) %>% 
+  janitor::clean_names()
+
+#calculate mean residual
+acs_residual <- acs_clean %>% 
+  mutate(residual = abs(true_mussel_density - hh_metric))
+```
+
+```{r}
+#overall residual grouped by total quadrats
+acs_grouped_total <- acs_residual %>% 
+  group_by(spatial_distribution, total_quadrats_sampled) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = acs_grouped_total) +
+  geom_line(aes(x = total_quadrats_sampled, y = mean_residual, color = spatial_distribution)) +
+  labs(title = "Mean residual, total number of quadrats (ACS)")
+```
+
+
+```{r}
+#overall residual grouped by starting quadrats
+acs_grouped_start <- acs_residual %>% 
+  group_by(spatial_distribution, acs_num_quadrats) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = acs_grouped_start) +
+  geom_line(aes(x = acs_num_quadrats, y = mean_residual, color = spatial_distribution)) +
+  labs(title = "Mean residual, different starting number of quadrats (ACS)",
+       x = "number of ACS clusters")
+```
+
+```{r}
+#exlcuding maxed out quadrats
+acs_mean_residual_start_no_limit <- acs_clean %>% 
+  mutate(residual = abs(true_mussel_density - hh_metric)) %>% 
+  filter(acs_max_clusters != total_quadrats_sampled) %>% 
+  group_by(spatial_distribution, acs_num_quadrats) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = acs_mean_residual_start_no_limit) +
+  geom_line(aes(x = acs_num_quadrats, y = mean_residual, color = spatial_distribution)) +
+    labs(title = "Mean residual excluding maxed out acs (ACS)",
+       x = "number of ACS clusters")
+
+```
+
+```{r}
+#overall residual grouped by starting quadrats and density
+acs_grouped_start_density <- acs_residual %>% 
+  group_by(spatial_distribution, acs_num_quadrats, true_mussel_density) %>% 
+  summarise(mean_residual = mean(residual))
+
+#ggplot
+ggplot(data = acs_grouped_start_density) +
+  geom_line(aes(x = acs_num_quadrats, y = mean_residual, color = spatial_distribution))  +
+  facet_grid(rows = vars(true_mussel_density), scales = "free") + 
+  labs(title = "Mean residual, different density (ACS)",
+       x = "number of ACS clusters")
+```
+
+```{r}
+#look at trends within poisson cluster types
+acs_poisson <- acs_residual %>% 
+  filter(spatial_distribution == "Clumped-Poisson")
+
+acs_grouped_poisson <- acs_poisson %>% 
+  group_by(acs_num_quadrats, number_of_clumps, poisson_mean) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = acs_grouped_poisson) +
+  geom_line(aes(x = acs_num_quadrats, y = mean_residual, color = as.factor(poisson_mean))) +
+  facet_grid(rows = vars(number_of_clumps)) +
+  labs(title = "Mean residual with different number of poisson clumps (ACS)",
+       x = "number of ACS clusters")
+```
+```{r}
+#look at trends within matern cluster types
+acs_matern <- acs_residual %>% 
+  filter(spatial_distribution == "Clumped-Matern")
+
+acs_grouped_matern <- acs_matern %>% 
+  group_by(acs_num_quadrats, matern_clump_placement) %>% 
+  summarise(mean_residual = mean(residual))
+
+ggplot(data = acs_grouped_matern) +
+  geom_line(aes(x = acs_num_quadrats, y = mean_residual, color = matern_clump_placement)) +
+  labs(title = "Mean residual with different matern configuration (ACS)",
+       x = "number of ACS clusters")
+```
+
+
+# Timed Search
+
+```{r}
+#clean_names
+timed_clean <- rbind(h3_matern_timed, h3_poisson_timed, h3_random_timed) %>% 
+  janitor::clean_names()
+
+#calculate prop found
+timed_proportion_found <- timed_clean %>% 
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(person_hours_searched = round(person_hours_searched, 1))
+```
+
+```{r}
+#look at overall trends
+timed_group <- timed_proportion_found %>%
+  group_by(spatial_distribution, person_hours_searched) %>% 
+  summarise(mean_prop_found = mean(proportion_found))
+
+#ggplot
+ggplot(data = timed_group) +
+  geom_line(aes(x = person_hours_searched, y = mean_prop_found, color = spatial_distribution)) +
+  labs(title = "Mean proportion of mussels detected (timed search)")
+```
+
+```{r}
+#look at density
+timed_group_density <- timed_proportion_found %>%
+  group_by(spatial_distribution, person_hours_searched, true_mussel_density) %>% 
+  summarise(mean_prop_found = mean(proportion_found))
+
+#ggplot
+ggplot(data = timed_group_density) +
+  geom_line(aes(x = person_hours_searched, y = mean_prop_found, color = spatial_distribution))  +
+  facet_grid(rows = vars(true_mussel_density)) +
+  labs(title = "Mean proportion of mussels detected, different densities (timed search)")
+```
+```{r}
+#look at poisson cluster perams
+timed_poisson <- timed_proportion_found %>% 
+  filter(spatial_distribution == "Clumped-Poisson")
+
+timed_grouped_poisson <- timed_poisson %>% 
+  group_by(person_hours_searched, number_of_clumps, poisson_mean) %>% 
+  summarise(mean_prop_found = mean(proportion_found))
+
+ggplot(data = timed_grouped_poisson) +
+  geom_line(aes(x = person_hours_searched, y = mean_prop_found, color = as.factor(poisson_mean))) +
+  facet_grid(rows = vars(number_of_clumps)) +
+  labs(title = "Mean proportion of mussels detected, different num of poisson clumps (timed search)")
+```
+
+
+```{r}
+#look at matern cluster perams
+timed_matern <- timed_proportion_found %>% 
+  filter(spatial_distribution == "Clumped-Matern")
+
+timed_grouped_matern <- timed_matern %>% 
+  group_by(person_hours_searched, matern_clump_placement) %>% 
+  summarise(mean_prop_found = mean(proportion_found))
+
+ggplot(data = timed_grouped_matern) +
+  geom_line(aes(x = person_hours_searched, y = mean_prop_found, color = matern_clump_placement)) +
+  labs(title = "Mean proportion of mussels detected, different matern clumps (timed search)")
+```
+

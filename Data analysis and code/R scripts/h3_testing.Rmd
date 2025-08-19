@@ -1,0 +1,128 @@
+---
+title: "h3_testing"
+author: "Anonymous"
+date: "2024-08-20"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+```
+
+# SRS Data
+
+Read in srs data to start with
+
+```{r}
+h3_matern_srs <- read.csv("data/H3_matern_srs.csv")
+h3_poisson_srs <- read.csv("data/H3_poisson_srs.csv")
+h3_random_srs <- read.csv("data/H3_random_srs.csv")
+```
+
+clean up the column names and compute mean absolute value of the residual
+
+```{r}
+#clean_names
+srs_clean <- rbind(h3_matern_srs, h3_poisson_srs, h3_random_srs) %>% 
+  janitor::clean_names()
+
+#calculate residual
+srs_residual <- srs_clean %>% 
+  mutate(residual = abs(true_mussel_density - estimated_density)) %>% 
+  mutate(m_sampled = total_quadrats_sampled/4)
+
+#calculate mean residual
+srs_grouped <- srs_residual %>% 
+  group_by(spatial_distribution, m_sampled, true_mussel_density) %>% 
+  summarise(mean_residual = mean(residual)) %>% 
+  filter(spatial_distribution == "random",
+         true_mussel_density == 7)
+```
+
+# Trying it out on SRS, Density 1, Random Distribution
+
+```{r}
+# Your data
+mock_data <- data.frame(
+  residual = c(srs_grouped$mean_residual),
+  intensity = c(srs_grouped$m_sampled)
+)
+
+intensity_seq <- data.frame(intensity = c(1:500))
+
+plot(mock_data$intensity, mock_data$residual)
+
+# Apply a log transformation to y
+mock_data$log_y <- log(mock_data$residual + 1e-6)  # epsilon is a small constant to avoid log(0)
+
+# Fit a linear model to the transformed response
+model <- lm(log_y ~ intensity, data = mock_data)
+
+# Predict residual values using the model for the generated sequence
+predicted_residuals <- exp(predict(model, newdata = intensity_seq))
+
+# Plot the original data and the fitted curve
+plot(mock_data$intensity, mock_data$residual,
+     xlab = "Intensity", ylab = "Residual",
+     main = "Residual vs. Intensity with Fitted Curve",
+     pch = 16)
+
+# Add the fitted curve
+lines(intensity_seq$intensity, predicted_residuals, col = "red", lwd = 2)
+
+```
+
+# TIMED SEARCH
+
+```{r}
+h3_matern_timed <- read.csv("data/H3_matern_timed.csv")
+h3_poisson_timed <- read.csv("data/H3_poisson_timed.csv")
+h3_random_timed <- read.csv("data/H3_random_timed.csv")
+```
+
+```{r}
+#clean_names
+timed_clean <- rbind(h3_matern_timed, h3_poisson_timed, h3_random_timed) %>% 
+  janitor::clean_names()
+
+#calculate prop found
+timed_proportion_found <- timed_clean %>% 
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(m_sampled = total_quadrats_sampled/4) %>% 
+  mutate(person_hours_searched = round(person_hours_searched, 1))
+```
+
+```{r}
+#get subset
+timed_random_one <- timed_proportion_found %>% 
+  filter(true_mussel_density == 1, spatial_distribution == "random") %>% 
+  group_by(person_hours_searched) %>% 
+  summarise(mean_proportion_found = mean(proportion_found))
+
+plot(x= timed_random_one$person_hours_searched, y = timed_random_one$mean_proportion_found)
+```
+
+```{r}
+#get relevant cols
+time_searched <- timed_random_one$person_hours_searched
+prop_found <- timed_random_one$proportion_found
+
+#run linear model with log transformation
+lm <- lm(prop_found ~ log(time_searched))
+
+
+#get coefficients
+lm_coef <- coef(lm)
+
+new_time <- data.frame(time_searched = seq(4.5, 35, length.out = 100))
+
+dat <- exp(predict(lm, newdata = new_time))
+
+#plot
+plot(new_time$time_searched,dat)
+```
+

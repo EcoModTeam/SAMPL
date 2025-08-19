@@ -1,0 +1,902 @@
+---
+title: "H3 Curve Fitting: Proportion Found by M Sampled"
+author: "Anonymous"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+toc-title: "Table of contents"
+sansfont: Calibri
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(kableExtra)
+library(cowplot)
+```
+
+# Defining Functions
+
+### Functions to fit different types of curves
+
+```{r}
+#log transformed linear model
+fit_log <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #fit the model
+  model <- tryCatch(
+    lm(residual ~ log(intensity)), 
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+
+#linear model
+fit_line <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #fit the model
+  model <- tryCatch(
+    lm(residual ~ intensity), 
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+
+#polynomial function
+fit_poly <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #fit the model
+  model <- tryCatch(
+    lm(residual ~ poly(intensity, 2)),
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+
+```
+
+### Functions to make predictions
+
+```{r}
+#function to predict values using the fitted model
+exp_predict <- function(df, new_df, model_type = c("exp", "pwr", "decay", "log", "line", "ploy"), residual_col, intensity_col) {
+  
+  #fit the correct model
+  if(model_type == "exp") {
+    model <- fit_exponential(df, residual_col, intensity_col)
+  } 
+  if(model_type == "pwr") {
+    model <- fit_power_law(df, residual_col, intensity_col)
+  } 
+  if(model_type == "decay") {
+    model <- fit_decay(df, residual_col, intensity_col)
+  }
+  if(model_type == "log") {
+    model <- fit_log(df, residual_col, intensity_col)
+  }
+  if(model_type == "line") {
+    model <- fit_line(df, residual_col, intensity_col)
+  }
+  if(model_type == "poly") {
+    model <- fit_poly(df, residual_col, intensity_col)
+  }
+  
+  #if model fits, generate predictions df
+  if (!is.null(model)) {
+    pred_df <- data.frame(
+      intensity = new_df$intensity,
+      predicted = predict(model, newdata = new_df),
+      rse = summary(model)$sigma
+    )
+    return(pred_df)
+  } else {
+    failed_df <- new_df %>%
+      mutate(group = NA) %>% 
+      mutate(predicted = NA) %>% 
+      mutate(rese = NA)
+    
+    return(failed_df)
+  }
+}
+```
+
+# Reading in Data
+
+```{r warning=FALSE, message=FALSE}
+#matern distribution data
+h3_matern_acs <- read.csv("data/H3_matern_acs.csv")
+h3_matern_srs <- read.csv("data/H3_matern_srs.csv")
+h3_matern_timed <- read.csv("data/H3_matern_timed.csv")
+h3_matern_transect <- read.csv("data/H3_matern_transect.csv")
+
+#poisson distribution data
+h3_poisson_acs <- read.csv("data/H3_poisson_acs.csv") %>% 
+  filter(Number.of.clumps == 5, Poisson.mean == 3)
+h3_poisson_srs <- read.csv("data/H3_poisson_srs.csv") %>% 
+  filter(Number.of.clumps == 5, Poisson.mean == 3)
+h3_poisson_timed <- read.csv("data/H3_poisson_timed.csv") %>% 
+  filter(Number.of.clumps == 5, Poisson.mean == 3)
+h3_poisson_transect <- read.csv("data/H3_poisson_transect.csv") %>% 
+  filter(Number.of.clumps == 5, Poisson.mean == 3)
+
+#random distribution data
+h3_random_acs <- read.csv("data/H3_random_acs.csv")
+h3_random_srs <- read.csv("data/H3_random_srs.csv")
+h3_random_timed <- read.csv("data/H3_random_timed.csv")
+h3_random_transect <- read.csv("data/H3_random_transect.csv")
+
+#create new data for predictions
+new_dat <- data.frame(intensity = c(seq(0, 500, length.out = 100)))
+```
+
+# SRS Analysis
+
+```{r}
+#bind data and do some cleaning
+srs_clean <- rbind(h3_matern_srs, h3_poisson_srs, h3_random_srs) %>% 
+  janitor::clean_names() %>% 
+  mutate(spatial_distribution = case_when(
+    spatial_distribution == "Clumped-Matern" ~ paste(matern_clump_placement), 
+    T ~ spatial_distribution)) %>% 
+  filter(detectability_of_rare_mussels == 1)
+
+
+#calculate residual, prop found, m sampled, density category
+srs_residual <- srs_clean %>% 
+  mutate(residual = (abs(estimated_density-true_mussel_density)/true_mussel_density) * 100) %>%
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(m_sampled = total_quadrats_sampled/4) %>% 
+  mutate(density_cat = case_when(true_mussel_density %in% c(0.1, 0.01) ~ "rare", T ~ "common"))
+```
+
+### check relationship 
+
+```{r}
+srs_mean <- srs_clean %>% 
+  filter(spatial_distribution == "Clumped-Poisson") %>% 
+  filter(true_mussel_density == 1) %>% 
+  group_by(total_quadrats_sampled) %>% 
+  summarise(mean_prop = mean(total_mussels_detected/total_mussels))
+
+plot(srs_mean$total_quadrats_sampled, srs_mean$mean_prop)
+```
+
+## Log-Adjusted LM
+
+```{r}
+#get 100 predictions per group
+srs_log_model_preds <- srs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(srs_log_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "SRS: proportion found log adjusted LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Polynomial
+
+```{r}
+#get 100 predictions per group
+srs_poly_model_preds <- srs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "poly", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(srs_poly_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "SRS: Proportion found polynomial model",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Linear
+
+```{r}
+#get 100 predictions per group
+srs_line_model_preds <- srs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(srs_line_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "SRS: Proportion Found LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+srs_rse_table <- data.frame(
+  spatial_distribution = c(srs_line_model_preds$spatial_distribution),
+  density = c(srs_line_model_preds$density_cat),
+  log_rse= c(srs_log_model_preds$rse),
+  poly_rse = c(srs_poly_model_preds$rse),
+  line_rse = c(srs_line_model_preds$rse)) %>% 
+  distinct()
+
+#add colum which has min rse model name
+y <- colnames(srs_rse_table)[apply(srs_rse_table[,c(3:5)],1,which.min) + 2]
+srs_rse_table$min_col <- y
+
+knitr::kable(srs_rse_table) %>% 
+  kable_styling()
+```
+
+## Best Models Plotted Together
+
+```{r}
+#bind RSE into table
+srs_best_fit_preds <- rbind(
+  srs_log_model_preds,
+  srs_poly_model_preds,
+  srs_line_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T)%>% 
+  mutate(search_method = "SRS")
+
+# Plot the data and fitted curves
+srs_bestfit <- 
+  ggplot() +
+  geom_line(data = srs_best_fit_preds, aes(x = intensity, y = predicted,
+                                           linetype = density_cat,
+                                           color = spatial_distribution),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Simple Random Sample",
+       x = expression(paste("Area Sampled (", m^{2}, ")")),
+       y = "Proportion Found") +
+  scale_color_manual(values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+```
+
+# TRS Analysis
+
+```{r}
+#bind data and do some cleaning
+trs_clean <- rbind(h3_matern_transect, h3_poisson_transect, h3_random_transect) %>% 
+  janitor::clean_names() %>% 
+  mutate(spatial_distribution = case_when(
+    spatial_distribution == "Clumped-Matern" ~ paste(matern_clump_placement), 
+    T ~ spatial_distribution)) %>% 
+  filter(detectability_of_rare_mussels == 1)
+
+
+#calculate residual, prop found, m sampled, density category
+trs_residual <- trs_clean %>% 
+  mutate(residual = (abs(estimated_density-true_mussel_density)/true_mussel_density) * 100) %>%
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(m_sampled = total_quadrats_sampled/4) %>% 
+  mutate(density_cat = case_when(true_mussel_density %in% c(0.1, 0.01) ~ "rare", T ~ "common"))
+```
+
+### check relationship 
+
+```{r}
+trs_mean <- trs_clean %>% 
+  filter(spatial_distribution == "Clumped-Poisson") %>% 
+  filter(true_mussel_density == 1) %>% 
+  group_by(total_quadrats_sampled) %>% 
+  summarise(mean_prop = mean(total_mussels_detected/total_mussels))
+
+plot(trs_mean$total_quadrats_sampled, trs_mean$mean_prop)
+```
+
+## Log-Adjusted LM
+
+```{r}
+#get 100 predictions per group
+trs_log_model_preds <- trs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(trs_log_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "trs: proportion found log adjusted LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Polynomial
+
+```{r}
+#get 100 predictions per group
+trs_poly_model_preds <- trs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "poly", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(trs_poly_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "trs: Proportion found polynomial model",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+
+## Linear
+
+```{r}
+#get 100 predictions per group
+trs_line_model_preds <- trs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(trs_line_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "trs: Proportion Found LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+trs_rse_table <- data.frame(
+  spatial_distribution = c(trs_line_model_preds$spatial_distribution),
+  density = c(trs_line_model_preds$density_cat),
+  log_rse= c(trs_log_model_preds$rse),
+  poly_rse = c(trs_poly_model_preds$rse),
+  line_rse = c(trs_line_model_preds$rse)) %>% 
+  distinct()
+
+#add colum which has min rse model name
+y <- colnames(trs_rse_table)[apply(trs_rse_table[,c(3:5)],1,which.min) + 2]
+trs_rse_table$min_col <- y
+
+knitr::kable(trs_rse_table) %>% 
+  kable_styling()
+```
+
+## Best Models Plotted Together
+
+```{r}
+#bind RSE into table
+trs_best_fit_preds <- rbind(
+  trs_log_model_preds,
+  trs_poly_model_preds,
+  trs_line_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T) %>% 
+  mutate(search_method = "TRS")
+
+# Plot the data and fitted curves
+trs_bestfit <- 
+  ggplot() +
+  geom_line(data = trs_best_fit_preds, aes(x = intensity, y = predicted,
+                                           linetype = density_cat,
+                                           color = spatial_distribution),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Transect Sample",
+       x = expression(paste("Area Sampled (", m^{2}, ")")),
+       y = "Proportion Found") +
+  scale_color_manual(values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+```
+
+# ACS Analysis
+
+```{r}
+#bind data and do some cleaning
+acs_clean <- rbind(h3_matern_acs, h3_poisson_acs, h3_random_acs) %>% 
+  janitor::clean_names() %>% 
+  mutate(spatial_distribution = case_when(
+    spatial_distribution == "Clumped-Matern" ~ paste(matern_clump_placement), 
+    T ~ spatial_distribution)) %>% 
+  filter(detectability_of_rare_mussels == 1)
+
+
+#calculate residual, prop found, m sampled, density category
+acs_residual <- acs_clean %>% 
+  mutate(residual = (abs(estimated_density-true_mussel_density)/true_mussel_density) * 100) %>%
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(m_sampled = total_quadrats_sampled/4) %>% 
+  mutate(density_cat = case_when(true_mussel_density %in% c(0.1, 0.01) ~ "rare", T ~ "common"))
+```
+
+### check relationship 
+
+```{r}
+acs_mean <- acs_clean %>% 
+  filter(spatial_distribution == "Clumped-Poisson") %>% 
+  filter(true_mussel_density == 1) %>% 
+  group_by(acs_num_quadrats) %>% 
+  summarise(mean_prop = mean(total_mussels_detected/total_mussels))
+
+plot(acs_mean$acs_num_quadrats, acs_mean$mean_prop)
+```
+
+## Log-Adjusted LM
+
+```{r}
+#get 100 predictions per group
+acs_log_model_preds <- acs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", 
+                              residual = "proportion_found", 
+                              intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(acs_log_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "acs: proportion found log adjusted LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Polynomial
+
+```{r}
+#get 100 predictions per group
+acs_poly_model_preds <- acs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "poly", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(acs_poly_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "acs: Proportion found polynomial model",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Linear
+
+```{r}
+#get 100 predictions per group
+acs_line_model_preds <- acs_residual %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(acs_line_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "acs: Proportion Found LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+```
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+acs_rse_table <- data.frame(
+  spatial_distribution = c(acs_line_model_preds$spatial_distribution),
+  density = c(acs_line_model_preds$density_cat),
+  log_rse= c(acs_log_model_preds$rse),
+  poly_rse = c(acs_poly_model_preds$rse),
+  line_rse = c(acs_line_model_preds$rse)) %>% 
+  distinct()
+
+#add colum which has min rse model name
+y <- colnames(acs_rse_table)[apply(acs_rse_table[,c(3:5)],1,which.min) + 2]
+acs_rse_table$min_col <- y
+
+knitr::kable(acs_rse_table) %>% 
+  kable_styling()
+```
+
+## Best Models Plotted Together
+
+```{r}
+#bind RSE into table
+acs_best_fit_preds <- rbind(
+  acs_log_model_preds,
+  acs_poly_model_preds,
+  acs_line_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T) %>% 
+  mutate(search_method = "ACS")
+
+# Plot the data and fitted curves
+acs_bestfit <- 
+ggplot() +
+  geom_line(data = acs_best_fit_preds, 
+            aes(x = intensity, y = predicted,
+                linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Adaptive Cluster Sample",
+       x = expression(paste("Area Sampled (", m^{2}, ")")),
+       y = "Proportion Found") +
+  scale_color_manual(name = "Mussel Spatial Distribution",
+                     values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  scale_linetype_manual(name = expression(
+    paste("True Mussel Density (m/", m^{2}, ")")),
+    values = c("rare" = "dashed", "common" = "solid")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+```
+
+# Timed Search
+
+```{r warning=FALSE, message=FALSE}
+#clean_names
+timed_clean <- rbind(h3_matern_timed, h3_poisson_timed, h3_random_timed) %>% 
+  janitor::clean_names() %>% 
+  mutate(spatial_distribution = case_when(spatial_distribution == "Clumped-Matern" ~ paste(matern_clump_placement), T ~ spatial_distribution)) %>% 
+  filter(detectability_of_rare_mussels == 0.3)
+
+#calculate prop found
+timed_proportion_found <- timed_clean %>% 
+  mutate(proportion_found = total_mussels_detected/total_mussels) %>% 
+  mutate(m_sampled = sum_of_quadrats_per_surveyor/4) %>% 
+  mutate(person_hours_searched = round(person_hours_searched, 1)) %>% 
+  mutate(density_cat = case_when(true_mussel_density %in% c(0.1, 0.01) ~ "rare", T ~ "common"))
+```
+
+### check relationship 
+
+```{r}
+timed_mean <- timed_clean %>% 
+  filter(spatial_distribution == "Clumped-Poisson") %>% 
+  filter(true_mussel_density == 1) %>% 
+  group_by(sum_of_quadrats_per_surveyor) %>% 
+  summarise(mean_prop = mean(total_mussels_detected/total_mussels))
+
+plot(timed_mean$sum_of_quadrats_per_surveyor, timed_mean$mean_prop)
+```
+
+## Log-Adjusted LM
+
+```{r}
+#get 100 predictions per group
+timed_log_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(timed_log_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "timed: proportion found log adjusted LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+## Polynomial
+
+```{r}
+#get 100 predictions per group
+timed_poly_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "poly", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(timed_poly_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "timed: Proportion found polynomial model",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+
+```
+
+
+## Linear
+
+```{r}
+#get 100 predictions per group
+timed_line_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", residual = "proportion_found", intensity = "m_sampled"))
+
+# Plot the data and fitted curves
+ggplot(timed_line_model_preds, aes(x = intensity, y = predicted)) +
+  geom_line(aes(linetype = density_cat,
+                color = spatial_distribution),
+            linewidth = 1) +
+  labs(title = "timed: Proportion Found LM",
+       x = "Square m Sampled",
+       y = "Proportion Found") +
+  theme_minimal()
+```
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+timed_rse_table <- data.frame(
+  spatial_distribution = c(timed_line_model_preds$spatial_distribution),
+  density = c(timed_line_model_preds$density_cat),
+  log_rse= c(timed_log_model_preds$rse),
+  poly_rse = c(timed_poly_model_preds$rse),
+  line_rse = c(timed_line_model_preds$rse)) %>% 
+  distinct()
+
+#add colum which has min rse model name
+y <- colnames(timed_rse_table)[apply(timed_rse_table[,c(3:5)],1,which.min) + 2]
+timed_rse_table$min_col <- y
+
+knitr::kable(timed_rse_table) %>% 
+  kable_styling()
+```
+
+## Best Models Plotted Together
+
+```{r}
+#bind RSE into table
+timed_best_fit_preds <- rbind(
+  timed_log_model_preds,
+  timed_poly_model_preds,
+  timed_line_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T) %>% 
+  mutate(search_method = "QTS")
+
+# Plot the data and fitted curves
+timed_bestfit <- 
+  ggplot() +
+  geom_line(data = timed_best_fit_preds, aes(x = intensity, y = predicted,
+                                           linetype = density_cat,
+                                           color = spatial_distribution),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Timed Search",
+       x = expression(paste("Sum of area sampled by each surveyor (", m^{2}, ")")),
+       y = "Proportion Found") +
+  scale_color_manual(values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+```
+
+# Cowplot of Best Plots
+
+```{r}
+color_legend <- ggplot() +
+  geom_line(data = timed_best_fit_preds, aes(x = intensity, y = predicted,
+                                             color = spatial_distribution),
+            linewidth = 1) +
+  scale_color_manual(name = "Mussel Spatial Distribution",
+                     values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+
+line_legend <- ggplot() +
+  geom_line(data = timed_best_fit_preds, aes(x = intensity, y = predicted,
+                                           linetype = density_cat),
+            linewidth = 1) +
+  scale_linetype_manual(name = expression(
+    paste("True Mussel Density")),
+    values = c("rare" = "dashed", "common" = "solid")) +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+
+
+```{r}
+
+get_legend_35 <- function(plot) {
+  # return all legend candidates
+  legends <- get_plot_component(plot, "guide-box", return_all = TRUE)
+  # find non-zero legends
+  nonzero <- vapply(legends, \(x) !inherits(x, "zeroGrob"), TRUE)
+  idx <- which(nonzero)
+  # return first non-zero legend if exists, and otherwise first element (which will be a zeroGrob) 
+  if (length(idx) > 0) {
+    return(legends[[idx[1]]])
+  } else {
+    return(legends[[1]])
+  }
+}
+
+# Extract the legend from one of the plots
+c_legend <- get_legend_35(color_legend + 
+                              guides(color = guide_legend(nrow = 1)) + 
+    theme(legend.position = "bottom"))
+
+l_legend <- get_legend_35(line_legend + 
+                              guides(color = guide_legend(nrow = 1)) + 
+    theme(legend.position = "bottom"))
+
+# Combine the plots into a 2x2 grid
+combined_plot <- plot_grid(srs_bestfit, trs_bestfit, acs_bestfit, timed_bestfit, 
+                           ncol = 2,  # Number of columns
+                           align = "v",  # Align vertically
+                           labels = "AUTO")  # Automatically label the plots
+
+# Combine legends into a single plot
+combined_legend <- plot_grid(c_legend, l_legend, nrow = 2, align = 'h', rel_heights = c(1, 1))
+
+
+# Combine plots with the legend
+final_plot <- plot_grid(combined_plot, combined_legend, ncol = 1, rel_heights = c(7, 1))
+
+# Print the combined plot
+ggdraw(final_plot)
+
+ggsave("figures/H3_combined_plot_proportion.png", plot = final_plot, width = 12, height = 8)
+```
+
+```{r}
+#saving best predictions
+proportion_predictions <- rbind(timed_best_fit_preds, srs_best_fit_preds, acs_best_fit_preds, trs_best_fit_preds)
+
+write.csv(proportion_predictions, "data/proportion_predictions.csv")
+```
+

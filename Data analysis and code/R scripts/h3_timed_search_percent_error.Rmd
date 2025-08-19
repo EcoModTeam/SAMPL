@@ -1,0 +1,423 @@
+---
+title: "using timed search to estimate density"
+author: "Anonymous"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(kableExtra)
+library(cowplot)
+```
+
+# Defining Functions
+
+### Functions to fit different types of curves
+
+```{r}
+#exponential decay
+fit_exponential <- function(df, 
+                            residual_col, 
+                            intensity_col) {
+  
+  #extract relevant cols
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #define model formula
+  model_formula <- residual ~ a * exp(-b * (intensity))
+  
+  #fit the model
+  model<- tryCatch({
+    nls(model_formula,
+        start = list(a = max(residual), b = 0.01))
+  }, error = function(e) {
+    message("Model fitting failed: ", e$message)
+  })
+  
+  return(model)
+}
+
+#power law decay
+fit_power_law <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #define power law decay formula
+  #model_formula <- residual ~ a * intensity^(-b) + c
+  model_formula <- residual ~ a * intensity^(-b)
+  
+  #list start vals
+  start_vals <- list(
+    a = max(df$residual, na.rm = TRUE),
+    b = 1
+    #c = 0
+  )
+  
+  #fit the model
+  model <- tryCatch(
+    nls(model_formula,
+        data = df, 
+        start = start_vals),
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+
+#log transformed linear model
+fit_log <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #fit the model
+  model <- tryCatch(
+    lm(residual ~ log(intensity)), #this version for timed search
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+
+#linear model
+fit_line <- function(df, residual_col, intensity_col) {
+  
+  residual <- df[[residual_col]]
+  intensity <- df[[intensity_col]]
+  
+  #fit the model
+  model <- tryCatch(
+    lm(residual ~ intensity), 
+    error = function(e) {
+      message("Model fitting failed: ", e$message)
+    })
+  
+  return(model)
+}
+```
+
+## function to make prediction
+
+```{r}
+#function to predict values using the fitted model
+exp_predict <- function(df, new_df, model_type = c("exp", "pwr", "log", "line"), residual_col, intensity_col) {
+  
+  #fit the correct model
+  if(model_type == "exp") {
+    model <- fit_exponential(df, residual_col, intensity_col)
+  } 
+  if(model_type == "pwr") {
+    model <- fit_power_law(df, residual_col, intensity_col)
+  } 
+  if(model_type == "log") {
+    model <- fit_log(df, residual_col, intensity_col)
+  }
+  if(model_type == "line") {
+    model <- fit_line(df, residual_col, intensity_col)
+  }
+  
+  #if model fits, generate predictions df
+  if (!is.null(model)) {
+    pred_df <- data.frame(
+      intensity = new_df$intensity,
+      predicted = predict(model, newdata = new_df),
+      rse = summary(model)$sigma
+    )
+    return(pred_df)
+  } else {
+    failed_df <- new_df %>%
+      mutate(group = NA) %>% 
+      mutate(predicted = NA) %>% 
+      mutate(rse = NA)
+    
+    return(failed_df)
+  }
+}
+```
+
+# Reading in Data and cleaning
+
+```{r}
+h3_matern_timed <- read.csv("data/H3_matern_timed.csv")
+h3_poisson_timed <- read.csv("data/H3_poisson_timed.csv") %>% 
+  filter(Number.of.clumps == 5, Poisson.mean == 3)
+h3_random_timed <- read.csv("data/H3_random_timed.csv")
+
+#create new data for predictions
+new_dat <- data.frame(intensity = c(seq(0, 30, length.out = 100)))
+```
+
+```{r warning=FALSE, message=FALSE}
+#clean_names
+timed_clean <- rbind(h3_matern_timed, h3_poisson_timed, h3_random_timed) %>% 
+  janitor::clean_names() %>% 
+  mutate(spatial_distribution = case_when(spatial_distribution == "Clumped-Matern" ~ paste(matern_clump_placement), T ~ spatial_distribution)) %>% 
+  filter(detectability_of_rare_mussels == 0.3)
+
+#calculate prop found
+timed_proportion_found <- timed_clean %>% 
+  mutate(pe_estimated_density = (abs((total_mussels_detected/(sum_of_quadrats_per_surveyor/4))-true_mussel_density)
+         /true_mussel_density) * 100) %>% 
+  mutate(m_sampled = sum_of_quadrats_per_surveyor/4) %>% 
+  mutate(person_hours_searched = round(person_hours_searched, 1)) %>% 
+  mutate(density_cat = case_when(true_mussel_density %in% c(0.1, 0.01) ~ "rare", T ~ "common"))
+```
+
+# Time Searched as Intensity Metric
+
+## Quick Plot
+
+```{r}
+timed_grouped <- timed_proportion_found %>% 
+  group_by(person_hours_searched, spatial_distribution, density_cat) %>% 
+  summarise(mean_pe = mean(pe_estimated_density))
+
+ggplot(data = timed_grouped) +
+  geom_point(aes(y = mean_pe, x = person_hours_searched, 
+                 color = spatial_distribution, shape = density_cat)) +
+  geom_line(aes(y = mean_pe, x = person_hours_searched, 
+                colour = spatial_distribution, linetype = density_cat)) +
+  scale_y_continuous(limits = c(0, 200)) 
+```
+
+## Running Models
+
+```{r}
+#exp
+timed_exp_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "exp", 
+                              residual = "pe_estimated_density", 
+                              intensity = "person_hours_searched"))
+
+#pwr
+timed_pwr_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "pwr", 
+                              residual = "pe_estimated_density", 
+                              intensity = "person_hours_searched"))
+
+#log
+timed_log_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", 
+                              residual = "pe_estimated_density", 
+                              intensity = "person_hours_searched"))
+
+#linear
+timed_line_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", 
+                              residual = "pe_estimated_density", 
+                              intensity = "person_hours_searched"))
+```
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+timed_rse_table <- data.frame(
+  spatial_distribution = c(timed_line_model_preds$spatial_distribution),
+  density = c(timed_line_model_preds$density_cat),
+  exp_rse= c(timed_exp_model_preds$rse),
+  pwr_rse= c(timed_pwr_model_preds$rse),
+  log_rse= c(timed_log_model_preds$rse),
+  line_rse = c(timed_line_model_preds$rse)) %>% 
+  distinct()
+
+#add column which has min rse model name
+y <- colnames(timed_rse_table)[apply(timed_rse_table[,c(3:6)],1,which.min) + 2]
+timed_rse_table$min_col <- y
+
+knitr::kable(timed_rse_table) %>% 
+  kable_styling()
+```
+
+## Graph With Time Searched as X-Axis
+
+```{r}
+#bind RSE into table
+timed_best_fit_preds <- rbind(
+  timed_log_model_preds,
+  timed_line_model_preds,
+  timed_exp_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T)
+
+# Plot the data and fitted curves
+timed_prop_time <- 
+  ggplot() +
+  geom_line(data = timed_best_fit_preds, aes(x = intensity, y = predicted,
+                                           linetype = density_cat,
+                                           color = spatial_distribution),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(title = "Timed Search",
+       x = "Person Hours Searched",
+       y = "Percent Error in\n Estimated Density") +
+  scale_color_manual(name = "Mussel Spatial Distribution",
+                     values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  scale_linetype_manual(name = "Mussel Density",
+    values = c("rare" = "dashed", "common" = "solid")) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+ggsave("figures/H3_timed_percent_error_time.png", plot = timed_prop_time, width = 12, height = 8)
+```
+
+# Area as Intensity Metric
+
+## Quick Plot
+
+```{r}
+timed_grouped <- timed_proportion_found %>% 
+  group_by(m_sampled, spatial_distribution, density_cat) %>% 
+  summarise(mean_pe = mean(pe_estimated_density))
+
+ggplot(data = timed_grouped) +
+  geom_point(aes(y = mean_pe, x = m_sampled, 
+                 color = spatial_distribution, shape = density_cat)) +
+  geom_line(aes(y = mean_pe, x = m_sampled, 
+                colour = spatial_distribution, linetype = density_cat)) +
+  scale_y_continuous(limits = c(0, 200)) 
+```
+
+
+## Running Models
+
+```{r}
+#create new data for predictions
+new_dat <- data.frame(intensity = c(seq(0, 500, length.out = 100)))
+
+#exp
+timed_exp_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "exp", 
+                              residual = "pe_estimated_density", 
+                              intensity = "m_sampled"))
+
+#pwr
+timed_pwr_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "pwr", 
+                              residual = "pe_estimated_density", 
+                              intensity = "m_sampled"))
+
+#log
+timed_log_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "log", 
+                              residual = "pe_estimated_density", 
+                              intensity = "m_sampled"))
+
+#linear
+timed_line_model_preds <- timed_proportion_found %>%
+  group_by(spatial_distribution, density_cat) %>%
+  group_modify( ~ exp_predict(.x, new_df = new_dat, model_type = "line", 
+                              residual = "pe_estimated_density", 
+                              intensity = "m_sampled"))
+```
+
+## Table of RSEs
+
+```{r warning=FALSE, message=FALSE}
+#bind RSE into table
+timed_rse_table <- data.frame(
+  spatial_distribution = c(timed_line_model_preds$spatial_distribution),
+  density = c(timed_line_model_preds$density_cat),
+  exp_rse= c(timed_exp_model_preds$rse),
+  pwr_rse= c(timed_pwr_model_preds$rse),
+  log_rse= c(timed_log_model_preds$rse),
+  line_rse = c(timed_line_model_preds$rse)) %>% 
+  distinct()
+
+#add column which has min rse model name
+y <- colnames(timed_rse_table)[apply(timed_rse_table[,c(3:6)],1,which.min) + 2]
+timed_rse_table$min_col <- y
+
+knitr::kable(timed_rse_table) %>% 
+  kable_styling()
+```
+
+## Graph With Time Searched as X-Axis
+
+```{r}
+#bind RSE into table
+timed_best_fit_preds <- rbind(
+  timed_log_model_preds,
+  timed_line_model_preds,
+  timed_exp_model_preds
+) %>% 
+  group_by(spatial_distribution, density_cat, intensity) %>% 
+  slice_min(order_by = rse, n = 1, with_ties = T)
+
+# Plot the data and fitted curves
+timed_prop_area <- 
+  ggplot() +
+  geom_line(data = timed_best_fit_preds, aes(x = intensity, y = predicted,
+                                             color = spatial_distribution, 
+                                             linetype = density_cat,),
+            linewidth = 1) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(title = "Timed Search",
+       x = expression(paste("Sum of area Sampled per surveyor (", m^{2}, ")")),
+       y = "Percent Error in\n Estimated Density") +
+  scale_color_manual(name = "Mussel Spatial Distribution",
+                     values = c("random" = "#CC79A7", 
+                                "Clumped-Poisson" = "#D55E00",
+                                "One shore only" = "#E69F00",
+                                "One shore; one middle" = "#56B4E9",
+                                "One shore; one middle; 2 additional" = "#009E73",
+                                "One shore; 2 additional" = "#F0E442",
+                                "Randomly placed" = "#0072B2"),
+                     labels = c("random" = "Random", 
+                                "Clumped-Poisson" = "Poisson",
+                                "One shore only" = "Clumped Matern 1S",
+                                "One shore; one middle" = "Clumped Matern 1S+1M",
+                                "One shore; one middle; 2 additional" = "Clumped Matern 1S+1M+2",
+                                "One shore; 2 additional" = "Clumped Matern 1S+2", 
+                                "Randomly placed" = "Clumped Matern 3"),
+                     limits = c("random", 
+                                "Clumped-Poisson", 
+                                "One shore only", 
+                                "One shore; one middle", 
+                                "One shore; one middle; 2 additional", 
+                                "One shore; 2 additional", 
+                                "Randomly placed")) +
+  scale_linetype_manual(
+    name = "Mussel Density",
+    values = c("rare" = "dashed", "common" = "solid")) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+ggsave("figures/H3_timed_percent_error_area.png", plot = timed_prop_area, width = 12, height = 8)
+```

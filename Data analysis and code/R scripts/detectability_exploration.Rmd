@@ -1,0 +1,165 @@
+---
+title: "Detectability Exploration"
+author: "Anonymous"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+```
+
+# Data Cleaning
+
+First, read in data and do some basic cleaning. For this section of the exploration I used data from H3.
+
+```{r}
+#file path
+directory <- "data"
+
+#get all files that start with H3
+files <- list.files(directory, pattern = "^H3", full.names = TRUE)
+
+#read file, clean names
+cleaned_files <- lapply(files, function(file) {
+  data <- read.csv(file)
+  cleaned_data <- clean_names(data)
+  return(cleaned_data)
+})
+
+#combine data and replace spatial distribution with matern config
+combined_data <- bind_rows(cleaned_files) %>% 
+  mutate(spatial_distribution = case_when(spatial_distribution == "Clumped-Matern" ~
+                                          matern_clump_placement, 
+                                          T ~ spatial_distribution))
+
+#relabel spatial distribution and set factor levels
+combined_data$spatial_distribution <- factor(combined_data$spatial_distribution,
+                                             levels = c("random", 
+                                                        "Clumped-Poisson", 
+                                                        "One shore only", 
+                                                        "One shore; one middle", 
+                                                        "One shore; one middle; 2 additional", 
+                                                        "One shore; 2 additional", 
+                                                        "Randomly placed"), 
+                                             labels = c("Random", 
+                                                        "Poisson", 
+                                                        "Clumped Matern 1S",
+                                                        "Clumped Matern 1S+1M",
+                                                        "Clumped Matern 1S+1M+2",
+                                                        "Clumped Matern 1S+2",
+                                                        "Clumped Matern 3"
+                                             )) 
+
+```
+
+#checking that each scenario was run an equal number of times
+
+```{r}
+combined_data %>% group_by(detectability_of_medium_rare_mussels) %>% 
+  summarise(n = n())
+
+#58800 of each sampling method
+#58800 of each true mussel density
+#33600 of each spatial distribution
+#78400 of each detectability
+```
+
+# Data Exploration With Plots
+
+Some starting assumptions/questions to test
+
+1. Accuracy will decrease linearly as detectability decreases for SRS and TRS. For ACS, accuracy should decay more rapidly as detectability decreases because ACS depends on mussel detections to grow clusters. This might not be an issue when density is high...
+
+2. CPUE should decay more rapidly as detectability lowers because timed searches depend on detections to initiate searching behavior in surveyors. This may not be true when density is high
+
+3. Will higher effort compensate for low detectability?
+
+# Question 1
+
+## ACS
+
+```{r}
+acs <- combined_data %>% 
+  filter(sampling_method == "adaptive-cluster") %>% 
+  mutate(percent_error = (abs(hh_metric - true_mussel_density)/true_mussel_density) * 100) %>%
+  group_by(true_mussel_density,
+           detectability_of_rare_mussels,
+           spatial_distribution,
+           acs_num_quadrats) %>%
+  summarise(mean_pe = mean(percent_error))
+
+ggplot(data = acs) +
+  geom_line(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution, linetype = as.factor(acs_num_quadrats))) +
+  geom_point(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution,
+                 sym = as.factor(acs_num_quadrats))) +
+  facet_wrap(vars(true_mussel_density))
+```
+
+- why does percent error get bigger when detectability increases if density is low? Theory. 0.01 is so close to zero, that the percent error is lower when no mussels were found than when one or more mussels are found.
+
+- Why does percent error get bigger as detectability increases when matern clusters starts with fewer quadrats???? 
+
+## SRS
+
+```{r}
+srs <- combined_data %>% 
+  filter(sampling_method == "simple-random-sample") %>% 
+  mutate(percent_error = 
+           (abs(estimated_density - true_mussel_density)/true_mussel_density) * 100) %>%
+  group_by(true_mussel_density,
+           detectability_of_rare_mussels,
+           spatial_distribution,
+           srs_num_quadrats) %>%
+  summarise(mean_pe = mean(percent_error))
+
+ggplot(data = srs) +
+  geom_line(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution, linetype = as.factor(srs_num_quadrats))) +
+  geom_point(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution,
+                 sym = as.factor(srs_num_quadrats))) +
+  facet_wrap(vars(true_mussel_density))
+```
+
+## TRS
+
+```{r}
+trs <- combined_data %>% 
+  filter(sampling_method == "transect") %>% 
+  mutate(percent_error = 
+           (abs(estimated_density - true_mussel_density)/true_mussel_density) * 100) %>%
+  group_by(true_mussel_density,
+           detectability_of_rare_mussels,
+           spatial_distribution,
+           number_transects) %>%
+  summarise(mean_pe = mean(percent_error))
+
+ggplot(data = trs) +
+  geom_line(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution, linetype = as.factor(number_transects))) +
+  geom_point(aes(y = mean_pe, x = detectability_of_rare_mussels, color = spatial_distribution,
+                 sym = as.factor(number_transects))) +
+  facet_wrap(vars(true_mussel_density))
+```
+
+# Question 2
+
+```{r}
+qts <- combined_data %>% 
+  filter(sampling_method == "timed-search") %>% 
+  mutate(person_hours_searched = round(person_hours_searched,1)) %>% 
+  group_by(true_mussel_density,
+           detectability_of_rare_mussels,
+           spatial_distribution,
+           person_hours_searched) %>%
+  summarise(mean_cpue = mean(mussels_per_person_hour))
+  
+
+ggplot(data = qts) +
+  geom_line(aes(y = mean_cpue, x = detectability_of_rare_mussels, color = spatial_distribution, linetype = as.factor(person_hours_searched))) +
+  geom_point(aes(y = mean_cpue, x = detectability_of_rare_mussels, color = spatial_distribution,
+                 sym = as.factor(person_hours_searched))) +
+  facet_wrap(vars(true_mussel_density))
+```
+
