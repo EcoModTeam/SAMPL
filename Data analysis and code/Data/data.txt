@@ -1,0 +1,1 @@
+This folder contains all of the data required for analysis using the files in the 'R scripts' folder.
