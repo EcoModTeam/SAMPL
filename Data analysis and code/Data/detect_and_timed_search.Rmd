@@ -1,0 +1,392 @@
+---
+title: "Exploring the Impact of Detectability on Timed Search"
+author: "Iris Foxfoot"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(broom)
+```
+
+NOTE TO SELF: Theme colors
+
+cfe3f3 - light blue 
+
+e6d0f2 - light purple 
+
+ffe5b4 - light orange
+
+# Initial Data Wrangling
+
+This data was produced using SAMPL V 1.0.0. Timed searches were run for 4.5 person-hours. Simulated surveyors alternated between searching and traveling. It was estimated that surveyors searched at a rate of 2 minutes per meter and traveled at a rate of 3 seconds per meter. Mussel density was set at 0.1 and 1 mussels per square meter. Mussels were distributed randomly or in 5 randomly placed poisson clusters wherein mussels were distributed at a mean distance of 3 meters from the center of the poisson cluster. Detectability was set at 1, .75, .5, and .25.
+
+We hypothesized that reductions in detectability would produce disproportionate reductions in CPUE when mussels were clustered and high density.
+
+The Null hypothesis: reductions in detectability will produce proportionate reductions in CPUE.
+
+The alternative hypothesis: reductions in detectability will produce disproportionate reductions in CPUE.
+
+```{r}
+#read in data
+all_data <- read.csv("timed_search_varying_detectability.csv")
+
+#cleaning names
+all_data_clean <- all_data %>% 
+  clean_names() %>% 
+  select(-x) %>% 
+  mutate(detectability = as.factor(detectability_of_rare_mussels))
+```
+
+# Raw Data Visualization
+
+```{r}
+low_density <- all_data_clean %>% 
+  filter(true_mussel_density == 0.1)%>% 
+  filter(detectability %in% c(0.5, 1))
+
+ggplot(low_density, aes(x = mussels_per_person_hour, fill = detectability)) +
+  geom_histogram(aes(y = ..count..), color = "black", position = "identity", alpha = 0.6)+
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  facet_wrap( ~ spatial_distribution) +
+  labs(title = "Low Density mussel distribution")
+
+high_density <- all_data_clean %>% 
+  filter(true_mussel_density == 1) %>% 
+  filter(detectability %in% c(0.5, 1))
+
+ggplot(high_density, aes(x = mussels_per_person_hour, fill = detectability)) +
+  geom_histogram(aes(y = ..count..), color = "black", position = "identity", alpha = 0.6)+
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  facet_wrap( ~ spatial_distribution) +
+  labs(title = "High Density mussel distribution")
+
+
+
+```
+
+# Statistical Analysis Methods Testing
+
+First, select the two detectabilities to compare. One of the detectabilities to compare should be perfect (1). Then multiply the CPUE from perfect detectability model runs by the lower detectability, to understand the the proportionate decline in CPUE with declining detectability would look like.
+
+```{r}
+#adjusting CPUE of perfect detectability
+adjusted_cpue <- all_data_clean %>% 
+  filter(detectability %in% c(0.5, 1)) %>% #comparing detectabilities of 0.5 and 1
+  mutate(adjusted_cpue = 
+           case_when(detectability == 1 ~ 
+                       mussels_per_person_hour * 0.5,
+                     T ~ mussels_per_person_hour))
+```
+
+## T-test
+
+Now, use a t-test to see if the perfect detectability CPUE \* lower detectability is significantly different from CPUE from lower detectability model runs. Do this for each distribution and density category.
+
+```{r}
+low_density_random <- adjusted_cpue %>% 
+  filter(true_mussel_density == 0.1) %>% 
+  filter(spatial_distribution == "random")
+
+#qq plots to check that the data is normal
+# qqnorm(low_density_random$adjusted_cpue[low_density_random$detectability == 0.5])
+# qqnorm(low_density_random$adjusted_cpue[low_density_random$detectability == 1])
+
+#t-test
+t_test_rld <- t.test(adjusted_cpue ~ detectability, data = low_density_random,
+                        var.equal = F)
+
+#t_test_rld
+
+low_density_random %>% group_by(detectability) %>% summarise(mean = mean(adjusted_cpue), std = sd(adjusted_cpue), min = min(adjusted_cpue), max = max(adjusted_cpue))
+
+```
+
+```{r}
+high_density_random <- adjusted_cpue %>% 
+  filter(true_mussel_density == 1) %>% 
+  filter(spatial_distribution == "random")
+
+# qqnorm(high_density_random$adjusted_cpue[high_density_random$detectability == 0.5])
+# qqnorm(high_density_random$adjusted_cpue[high_density_random$detectability == 1])
+
+t_test_rhd <- t.test(adjusted_cpue ~ detectability, data = high_density_random,
+                        var.equal = F)
+
+#t_test_rhd
+high_density_random %>% group_by(detectability) %>% summarise(mean = mean(adjusted_cpue), std = sd(adjusted_cpue), min = min(adjusted_cpue), max = max(adjusted_cpue))
+```
+
+```{r}
+low_density_clustered <- adjusted_cpue %>% 
+  filter(true_mussel_density == 0.1) %>% 
+  filter(spatial_distribution == "Clumped-Poisson") 
+
+
+# qqnorm(low_density_clustered$adjusted_cpue[low_density_clustered$detectability == 0.5])
+# qqnorm(low_density_clustered$adjusted_cpue[low_density_clustered$detectability == 1])
+
+t_test_cld <- t.test(adjusted_cpue ~ detectability, data = low_density_clustered,
+                        var.equal = F)
+
+#t_test_cld
+low_density_clustered %>% group_by(detectability) %>% summarise(mean = mean(adjusted_cpue), std = sd(adjusted_cpue), min = min(adjusted_cpue), max = max(adjusted_cpue))
+```
+
+```{r}
+high_density_clustered <- adjusted_cpue %>% 
+  filter(true_mussel_density == 1) %>% 
+  filter(spatial_distribution == "Clumped-Poisson")
+
+# qqnorm(high_density_clustered$adjusted_cpue[high_density_clustered$detectability == 0.5])
+# qqnorm(high_density_clustered$adjusted_cpue[high_density_clustered$detectability == 1])
+
+t_test_chd <- t.test(adjusted_cpue ~ detectability, data = high_density_clustered,
+                        var.equal = F)
+
+#t_test_chd
+high_density_clustered %>% group_by(detectability) %>% summarise(mean = mean(adjusted_cpue), std = sd(adjusted_cpue), min = min(adjusted_cpue), max = max(adjusted_cpue))
+```
+
+## Kolmogorov-Smirnov Test
+
+The KS tests for differences in distribution rather than differences in mean. The null hypothesis is that the two samples are drawn from the same distribution. One drawback is that the data should not have many repeating values, which this data does so that would have to be resolved...or ignored if it does not seem to be causing issues.
+
+```{r}
+#low_density_random
+ks.test(adjusted_cpue ~ detectability, data = low_density_random)
+
+#high_density_random
+ks.test(adjusted_cpue ~ detectability, data = high_density_random)
+
+#low_density_clusterd
+ks.test(adjusted_cpue ~ detectability, data = high_density_clustered)
+
+#high_density_clusterd
+ks.test(adjusted_cpue ~ detectability, data = low_density_clustered)
+```
+
+## Chi-Squared Test
+
+Expected values = mean CPUE of perfect detectability runs \* 0.5. We concluded a Chi-squared test is not really appropriate for this analysis.
+
+```{r}
+#rld  = random low density
+#rhd = random high density
+#chd = clustered high density
+#cld = clustered low density
+
+#actual values are subsets of the data where detectability was 0.5
+actual_rld <- adjusted_cpue %>% 
+  filter(detectability == 0.5,
+         true_mussel_density == 0.1,
+         spatial_distribution == "random")
+
+#expected values are subsets of the data where detectability was 1
+expected_rld <- adjusted_cpue %>% 
+  filter(detectability == 1,
+         true_mussel_density == 0.1,
+         spatial_distribution == "random")
+
+actual_rhd <- adjusted_cpue %>% 
+  filter(detectability == 0.5,
+         true_mussel_density == 1,
+         spatial_distribution == "random")
+
+expected_rhd <- adjusted_cpue %>% 
+  filter(detectability == 1,
+         true_mussel_density == 1,
+         spatial_distribution == "random")
+
+actual_chd <- adjusted_cpue %>% 
+  filter(detectability == 0.5,
+         true_mussel_density == 0.1,
+         spatial_distribution == "Clumped-Poisson")
+
+actual_cld <- adjusted_cpue %>% 
+  filter(detectability == 0.5,
+         true_mussel_density == 1,
+         spatial_distribution == "Clumped-Poisson")
+
+#did not run chi squared for every scenario!
+#testing if actual/expected = 0.5 as we expect for random high density
+chisq.test(c(mean(actual_rhd$mussels_per_person_hour)/mean(expected_rhd$mussels_per_person_hour), 
+           1 - mean(actual_rhd$mussels_per_person_hour)/mean(expected_rhd$mussels_per_person_hour)),
+           p = c(.5, .5))
+```
+
+# visualization
+
+```{r}
+ggplot(data = low_density_random) +
+  geom_boxplot((aes(y = mussels_per_person_hour, x = detectability))) +
+  geom_hline(yintercept = mean(low_density_random$mussels_per_person_hour[low_density_random$detectability == 1])/2)
+```
+
+## Adjusted Data Visualizaiton
+
+```{r}
+
+gglow_random <- ggplot(low_density_random, 
+                       aes(x = adjusted_cpue, fill = detectability)) +
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  geom_histogram(aes(color = detectability), position = "identity", alpha = 0.6) +
+  labs(title = "Random - Low Density")
+
+gg_high_random <- ggplot(high_density_random, 
+                         aes(x = adjusted_cpue, fill = detectability)) +
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  geom_histogram(aes(color = detectability), position = "identity", alpha = 0.6) +
+  labs(title = "Random - High Density")
+
+gg_low_clustered <- ggplot(low_density_clustered,
+                           aes(x = adjusted_cpue, fill = detectability)) +
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  geom_histogram(aes(color = detectability), position = "identity", alpha = 0.6) +
+  labs(title = "Clustered - Low Density")
+
+gg_high_clustered <- ggplot(high_density_clustered, 
+                            aes(x = adjusted_cpue, fill = detectability)) +
+  #geom_density(aes(color = detectability), size = 1, alpha = 0.6) +
+  geom_histogram(aes(color = detectability), position = "identity", alpha = 0.6) +
+  labs(title = "Clustered - High Density")
+
+
+#make a cowplot
+plot_grid(gglow_random, gg_high_random,
+          gg_low_clustered, gg_high_clustered)
+```
+
+# Deep Dive into Results
+
+Why do timed searches at lower detectabilities perform better than expected?
+
+IDEA 1:lower detectabilities forces surveyors to spread out more, results in slightly more quadrats being searched
+
+```{r}
+ggplot(data = all_data_clean) +
+  geom_boxplot(aes(y = total_quadrats_sampled, x = as.factor(detectability_of_rare_mussels), fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density)) +
+  labs(title = "Total Number of Quadrats Sampled At Both Densities and Distributions")
+
+```
+
+this is true when mussels are rare, slightly true when mussels are common. But the biggest difference happens when mussels are common so I'm not sure this is the reason.
+
+IDEA 2: Lower detectability produces less overlap in area searched?
+
+```{r}
+all_data_clean <- all_data_clean %>% 
+  mutate(searched_more_than_once = sum_of_quadrats_per_surveyor - total_quadrats_sampled)
+
+ggplot(data = all_data_clean) +
+  geom_boxplot(aes(y = searched_more_than_once, 
+                   x = as.factor(detectability_of_rare_mussels), fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density)) +
+  labs(title = "Number of Quadrats searched more than once")
+
+```
+
+This seems to be true at lower densities, but again the differences aren't huge when density is high, which is when we see timed searches performing better than expected.
+
+IDEA 3: Maybe the ratio of quadrats searched more than once to total quadrats searched is different?
+
+```{r}
+ggplot(data = all_data_clean) +
+  geom_boxplot(aes(y = searched_more_than_once/total_quadrats_sampled, 
+                   x = as.factor(detectability_of_rare_mussels), fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density)) +
+  labs(title = "Number of Quadrats searched more than once")
+```
+
+IDEA 4: Surveyors must be encountering more mussels somehow
+
+```{r}
+ggplot(data = all_data_clean) +
+  geom_boxplot(aes(y = total_mussels_in_quadrats, 
+                   x = as.factor(detectability_of_rare_mussels), fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density)) +
+  labs(title = "Total number of mussels sampled")
+```
+
+It looks like when distributions are clustered, surveyors encounter slightly more mussels when detectability is lower. This does not explain the pattern that exists in random variation.
+
+IDEA 5: Maybe surveyors spend more time surveying when detectability is low?
+
+```{r}
+
+ggplot(data = all_data_clean) +
+  geom_boxplot(aes(y = person_hours_searched, 
+                   x = as.factor(detectability_of_rare_mussels), fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density)) +
+  labs(title = "person hours searched")
+```
+
+It doesn't look like it is very relevant.
+
+# Looking at only high density random
+
+```{r}
+high_random <- all_data_clean %>% 
+  filter(spatial_distribution == "random") %>% 
+  filter(true_mussel_density == 1) %>% 
+  mutate(adjusted_mussels_detected = total_mussels_detected * (1/detectability_of_rare_mussels)) %>% 
+  mutate(adjusted_cpue = mussels_per_person_hour * (1/detectability_of_rare_mussels))
+```
+
+```{r}
+ggplot(data = high_random) +
+  geom_boxplot(aes(y = sum_of_quadrats_per_surveyor - total_quadrats_sampled, 
+                   x = as.factor(detectability_of_rare_mussels))) +
+  labs(title = "Number of times quadrats that were already searched were searched again")
+```
+
+The number of mussels encountered is relatively stable, so is the number of quadrats sampled.
+
+IDEA 6: cumulative probability of detection exceeds detectability when quadrats are searched multiple times?
+
+```{r}
+prob_detection <- all_data_clean %>% 
+  mutate(prob_minus_detection = mean_probability_of_detection_for_sampled_mussels - detectability_of_rare_mussels) 
+
+ggplot(data = prob_detection) +
+  geom_boxplot(aes(x = detectability, y = mean_probability_of_detection_for_sampled_mussels, fill = spatial_distribution)) +
+  facet_wrap( ~ as.factor(true_mussel_density))
+```
+
+This looks like it could explain the disproportionate change in CPUE relative to changes in detectability.
+
+# Cumulative Probability Data Visualization
+
+```{r}
+prob_detection <- all_data_clean %>% 
+  filter(detectability == 0.5)
+
+ggplot(data = prob_detection) +
+  geom_boxplot(aes(x = detectability, y = mean_probability_of_detection_for_sampled_mussels, fill = spatial_distribution)) +
+  geom_hline(aes(yintercept  = 0.5), linetype="dashed", color = "black") +
+  scale_y_continuous(limits = c(0.45, 0.75)) + 
+  labs(title = "",
+       y = "Mean cumulative\nprobability of detection",
+       x = "Mussel density per square meter",
+       fill = "Spatial distribution") +
+  scale_fill_manual(labels = c("Clustered", "Random"), 
+                    values = c("#cfe3f3", "#ffe5b4")) +
+  facet_wrap( ~ as.factor(true_mussel_density),
+              strip.position = "bottom") +
+  theme(
+    #axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y = element_text(angle = 0, vjust = 0.5))
+
+prob_detection %>% group_by(true_mussel_density, spatial_distribution, detectability) %>%  summarise(mean = mean(mean_probability_of_detection_for_sampled_mussels), mean2 = mean(mean_times_sampled_mussel_is_sampled), sd = sd(mean_probability_of_detection_for_sampled_mussels), sd2 = sd(mean_times_sampled_mussel_is_sampled))
+
+ggsave("Figure 3.jpg", width = 7, height = 5)
+
+```
